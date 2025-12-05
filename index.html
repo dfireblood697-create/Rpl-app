@@ -1,0 +1,1044 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Loan Records Tracking Tool (Cloud)</title>
+    
+    <!-- ********** ADDITIONS FOR DESKTOP/HOMESCREEN ICON & FAVICON ********** -->
+    <link rel="icon" type="image/png" href="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRn0Hz-y61XQ-3RgTeYFbMDN4ZaVuJozrSYJA&s">
+    <link rel="apple-touch-icon" href="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRn0Hz-y61XQ-3RgTeYFbMDN4ZaVuJozrSYJA&s">
+    <!-- ************************************************************************** -->
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Inter Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f9fc;
+        }
+        .container {
+            max-width: 100%;
+            padding: 1rem;
+        }
+        .table-container::-webkit-scrollbar {
+            height: 8px;
+        }
+        .table-container::-webkit-scrollbar-thumb {
+            background-color: #d1d5db;
+            border-radius: 4px;
+        }
+        .table-container::-webkit-scrollbar-track {
+            background: #f7f9fc;
+        }
+        .paid-row {
+            background-color: #d1fae5 !important;
+            transition: background-color 0.3s ease;
+        }
+        
+        @keyframes pulse-logo {
+            0%, 100% {
+                opacity: 1;
+                transform: scale(1);
+                box-shadow: 0 0 15px rgba(100, 116, 139, 0.4);
+            }
+            50% {
+                opacity: 0.7;
+                transform: scale(1.05);
+                box-shadow: 0 0 25px rgba(99, 102, 241, 0.8);
+            }
+        }
+        .animate-pulse-logo {
+            animation: pulse-logo 1.5s infinite ease-in-out;
+        }
+        
+        /* === Print Specific Styles for Thermal Printer 80mm (Approx 300px) === */
+        @media print {
+            body > *:not(#receiptModal) {
+                display: none !important;
+            }
+            
+            #receiptModal {
+                display: block !important;
+                position: fixed !important;
+                top: 0;
+                left: 0;
+                background: none !important; 
+                padding: 0 !important;
+                margin: 0 !important;
+                overflow: visible !important;
+                width: 100% !important;
+            }
+            
+            #receiptModal > div {
+                max-width: 300px !important; 
+                width: 300px !important;
+                margin: 0 auto !important;
+                height: auto !important;
+                max-height: none !important;
+                overflow: visible !important;
+                box-shadow: none !important;
+                border-radius: 0 !important;
+                padding: 0 !important;
+            }
+            
+            #receiptModal .sticky, 
+            #receiptModal button,
+            #receiptModal .bg-gray-100 {
+                display: none !important;
+            }
+            
+            body {
+                color: #000 !important;
+                background-color: #fff !important;
+                font-family: monospace !important; 
+                font-size: 10pt !important;
+            }
+
+            #receiptContent {
+                padding: 10px 5px !important;
+            }
+            
+            .border-dashed {
+                border-style: dashed !important;
+                border-width: 1px !important;
+            }
+            ::-webkit-scrollbar {
+                width: 0 !important;
+                height: 0 !important;
+            }
+        }
+        
+        #receiptModal > div {
+            max-width: 400px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container mx-auto">
+    <header class="py-6 border-b border-gray-200">
+        <div class="flex flex-col items-center justify-center space-y-2">
+            <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRn0Hz-y61XQ-3RgTeYFbMDN4ZaVuJozrSYJA&s" 
+                 alt="App Logo" 
+                 class="h-16 w-16 object-cover rounded-xl shadow-md animate-pulse-logo"
+                 onerror="this.onerror=null; this.src='https://placehold.co/64x64/cccccc/000000?text=L';">
+            <h1 class="text-3xl font-bold text-gray-800">Loan Records Tracking Tool</h1>
+        </div>
+    </header>
+
+    <!-- User ID and Status - UPDATED FOR FIREBASE -->
+    <div id="status" class="mt-4 p-3 bg-indigo-50 border border-indigo-200 rounded-lg shadow-sm text-sm text-indigo-700">
+        <p class="font-semibold">User ID: <span id="userIdDisplay" class="font-mono text-xs bg-indigo-100 px-2 py-1 rounded">Authenticating...</span></p>
+        <p class="mt-1 text-xs text-green-700 font-medium">Data is now saved to the Cloud Database (Firebase Firestore) in your project: <span class="font-bold">loan-tracker-7cbd4</span></p>
+    </div>
+
+    <!-- Data Entry Form -->
+    <section class="mt-6 p-5 bg-white rounded-xl shadow-lg">
+        <h2 class="text-xl font-semibold text-gray-700 mb-4">Add New Loan</h2>
+        <form id="loanForm" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- Placeholder Sinhala text is kept -->
+            <input type="text" id="loanNumber" placeholder="Loan Number (ණය අංකය)" required
+                   class="p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+            <input type="text" id="phoneNumber" placeholder="Phone Number (දුරකථන අංකය)" required
+                   class="p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+            
+            <!-- Amount (මුළු මුදල) with +1.5% Preview -->
+            <div class="relative">
+                <input type="number" id="amount" placeholder="Amount (මුළු ණය මුදල)" required min="1"
+                       class="w-full p-3 pr-32 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                <span id="amountPreview" 
+                      class="absolute inset-y-0 right-0 flex items-center pr-1 text-xs font-bold text-blue-700 bg-blue-100 rounded-r-lg px-2 shadow-inner whitespace-nowrap">
+                    +1.5%: Rs. 0.00
+                </span>
+            </div>
+            
+            <!-- Customer Paid Value -->
+            <input type="number" id="paidValue" placeholder="Customer Paid Value (ගෙවූ මුදල)" required min="0"
+                   class="p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+            
+            <!-- Real-time Calculated Value Display - -1.5% -->
+            <div id="calculatedPreview" class="md:col-span-2 p-3 bg-indigo-100 border border-indigo-300 rounded-lg text-sm text-indigo-800 font-medium">
+                -1.5% Calculated Value (After deduction): <span id="previewValue" class="font-bold">Rs. 0.00</span>
+            </div>
+
+            <button type="submit" id="submitButton" disabled
+                    class="md:col-span-2 bg-indigo-600 text-white p-3 rounded-lg font-semibold hover:bg-indigo-700 transition duration-150 shadow-md disabled:opacity-50">
+                Add Record
+            </button>
+        </form>
+        <div id="messageBox" class="mt-4 p-3 hidden bg-red-100 text-red-700 rounded-lg"></div>
+    </section>
+
+    <!-- Loan List/Table & Export Button -->
+    <section class="mt-8">
+        <h2 class="text-xl font-semibold text-gray-700 mb-4">Loan Records</h2>
+        
+        <!-- WhatsApp Prompt Box -->
+        <div id="whatsappMessageBox" class="mt-4 p-3 bg-green-50 border border-green-300 rounded-lg shadow-md hidden flex-col sm:flex-row justify-between items-center space-y-3 sm:space-y-0 sm:space-x-4 mb-4">
+            <p id="whatsappMessageTitle" class="text-base font-bold text-green-800 text-center sm:text-left flex-grow">
+                 <!-- JS will inject the message here -->
+            </p>
+            <a id="whatsappSendButton" target="_blank" href="#"
+               class="flex items-center justify-center space-x-2 bg-green-600 text-white p-3 rounded-xl font-semibold hover:bg-green-700 transition duration-150 shadow-lg w-full sm:w-auto flex-shrink-0">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12.002 0c-6.627 0-12 5.373-12 12s5.373 12 12 12 12-5.373 12-12-5.373-12-12-12zm4.018 17.509c-.27-.13-.71-.34-1.25-.66-.54-.32-3.13-1.54-3.62-1.74-.49-.2-.85-.3-.98.3s.38 1.48.54 1.78.33.34.66.44.69.2 1.35-.04 2.87-1.07 3.48-2.09c.61-1.01.4-1.87.28-2.08-.12-.21-.49-.32-.69-.42-.19-.1-.41-.15-.65-.15-.24 0-.5.06-.75.31-.25.25-.97.96-.97 2.34s1 2.71 1.13 2.84c.12.13.24.23.44.23s.47-.04.72-.25c.26-.2.43-.51.64-.78.19-.24.33-.42.47-.59.13-.17.29-.36.56-.63.26-.27.87-.29 1.22-.16.35.13.6.61.68 1.34s-.13 1.35-.27 1.62c-.14.28-.71.55-1.34.82z"/>
+                </svg>
+                <span class="text-sm">Send Receipt via WhatsApp</span>
+            </a>
+        </div>
+        <!-- End WhatsApp Prompt Box -->
+        
+        <!-- Filter and Search Controls -->
+        <div class="flex flex-col space-y-4 mb-4">
+            <!-- Search Bar -->
+            <input type="text" id="searchLoanNumber" placeholder="Search by Loan Number"
+                   class="p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 shadow-sm">
+
+            <!-- Date Filter Control -->
+            <div class="flex flex-col sm:flex-row sm:items-center space-y-3 sm:space-y-0 sm:space-x-4 p-3 bg-gray-100 rounded-lg shadow-inner">
+                <label for="filterDate" class="text-sm font-semibold text-gray-700 whitespace-nowrap">Filter by Date:</label>
+                <input type="date" id="filterDate" 
+                       class="p-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 flex-grow">
+                <button id="clearFilterButton" title="Clear Filter"
+                        class="p-2 px-4 bg-red-500 text-white rounded-lg font-semibold hover:bg-red-600 transition duration-150 flex-shrink-0">
+                    Clear Filter
+                </button>
+            </div>
+        </div>
+
+        <!-- Total Calculated Display and Export Button -->
+        <div class="flex flex-col sm:flex-row justify-between items-stretch sm:items-center space-y-3 sm:space-y-0 sm:space-x-4 mb-4">
+            <div id="totalCalculatedDisplay" class="p-4 bg-yellow-100 border border-yellow-300 rounded-lg text-yellow-800 shadow-md flex-grow flex flex-col space-y-1">
+                <span class="font-bold text-xl sm:text-2xl">Total Calculated Net Value:</span>
+                <span id="totalNetValueSpan" class="text-indigo-800 text-2xl sm:text-3xl font-extrabold">Rs. 0.00</span>
+            </div>
+            
+            <button id="downloadExcelButton" class="bg-green-600 text-white p-3 rounded-lg font-semibold hover:bg-green-700 transition duration-150 shadow-md w-full sm:w-auto flex-shrink-0">
+                Download as Excel File
+            </button>
+        </div>
+        
+        <!-- Table Container for Horizontal Scrolling on Mobile -->
+        <div class="table-container overflow-x-auto rounded-xl shadow-lg">
+            <table class="min-w-full divide-y divide-gray-200 bg-white">
+                <thead class="bg-indigo-50">
+                    <tr>
+                        <th colspan="2" class="px-4 py-3 text-center text-xs font-bold text-indigo-700 uppercase tracking-wider border-b border-indigo-200">Date & Time</th>
+                        <th rowspan="2" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Loan Number</th>
+                        <th rowspan="2" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone Number</th>
+                        <th colspan="2" class="px-4 py-3 text-center text-xs font-bold text-indigo-700 uppercase tracking-wider border-b border-indigo-200">Amount</th>
+                        <th rowspan="2" class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
+                        <th rowspan="2" class="px-4 py-3 text-center text-xs font-bold text-gray-600 uppercase tracking-wider border-l border-indigo-200">Paid</th> 
+                    </tr>
+                    <tr>
+                        <th class="px-4 py-3 text-center text-xs font-bold text-gray-600 uppercase tracking-wider bg-indigo-100">Date</th>
+                        <th class="px-4 py-3 text-center text-xs font-bold text-gray-600 uppercase tracking-wider bg-indigo-100">Time</th>
+                        <th class="px-4 py-3 text-center text-xs font-bold text-gray-600 uppercase tracking-wider bg-indigo-100">Paid Value</th>
+                        <th class="px-4 py-3 text-center text-xs font-bold text-gray-600 uppercase tracking-wider bg-indigo-100">-1.5% (Net)</th>
+                    </tr>
+                </thead>
+                <tbody id="loanTableBody" class="bg-white divide-y divide-gray-200">
+                    <!-- Data rows will be inserted here by JavaScript -->
+                    <tr><td colspan="8" class="text-center py-4 text-gray-500">Connecting to Cloud Database...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+    
+    <!-- Developer/Consultation Credit Footer -->
+    <footer class="mt-10 mb-4 p-4 text-center border-t border-gray-200">
+        <p class="text-xs text-gray-500 font-medium">
+            Developed by <span class="font-semibold text-indigo-600">Mithila</span> & Consultation by <span class="font-semibold text-indigo-600">Gayan</span>
+        </p>
+    </footer>
+
+</div>
+
+<!-- Custom Confirmation Modal (Replaces confirm()) -->
+<div id="confirmationModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black bg-opacity-50 p-4" aria-modal="true" role="dialog">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden transform transition-all">
+        <div class="p-6">
+            <h3 class="text-lg font-bold text-red-700" id="modalTitle">Confirm Deletion</h3>
+            <p class="mt-2 text-sm text-gray-700" id="modalMessage">Are you sure you want to permanently delete the record for Loan Number <span id="modalLoanNumber" class="font-mono font-semibold text-red-600"></span>? This action cannot be undone.</p>
+        </div>
+        <div class="bg-gray-50 px-6 py-3 flex justify-end space-x-3">
+            <button id="cancelButton" type="button" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 transition duration-150">
+                Cancel
+            </button>
+            <button id="confirmDeleteButton" type="button" class="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition duration-150 shadow-md">
+                Delete Record
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Receipt and Print Modal -->
+<div id="receiptModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black bg-opacity-70 p-4 print:hidden" aria-modal="true" role="dialog">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg h-full max-h-[90vh] overflow-y-auto transform transition-all p-0">
+        <!-- Receipt Content Area -->
+        <div id="receiptContent" class="p-6">
+            <!-- Content will be injected here -->
+        </div>
+
+        <!-- Receipt Footer/Controls -->
+        <div class="sticky bottom-0 bg-gray-100 px-6 py-4 flex justify-end space-x-3 border-t border-gray-200">
+            <button id="closeReceiptButton" type="button" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-200 transition duration-150 shadow-sm">
+                Close
+            </button>
+            <button id="printButton" type="button" class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition duration-150 shadow-md">
+                Print Receipt
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- JavaScript Logic (using Firebase Firestore) -->
+<script type="module">
+    // --- Firebase Imports ---
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, doc, addDoc, updateDoc, deleteDoc, onSnapshot, collection, query, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    // --- Firebase Setup (YOUR HARDCODED CONFIGURATION) ---
+    // **NOTE:** Since this is hosted externally, we use the provided configuration 
+    // and sign in anonymously, removing the reliance on Canvas globals.
+
+    const FIREBASE_CONFIG = {
+      apiKey: "AIzaSyCSvHPip4fUKQzfdCXIfDcRVlALJPMSp1s",
+      authDomain: "loan-tracker-7cbd4.firebaseapp.com",
+      projectId: "loan-tracker-7cbd4",
+      storageBucket: "loan-tracker-7cbd4.firebasestorage.app",
+      messagingSenderId: "708047816014",
+      appId: "1:708047816014:web:ccd674e3f28c49aab88a1f",
+      measurementId: "G-3930CRMWDV"
+    };
+
+    const APP_ID = FIREBASE_CONFIG.projectId; // Use Project ID as the identifier for the Firestore path
+    
+    let db;
+    let auth;
+    let userId = null;
+    let isAuthReady = false;
+    let currentLoans = [];
+    
+    // Public path for shop/collaborative data
+    // Data will be stored in: artifacts/loan-tracker-7cbd4/public/data/loans
+    const LOAN_COLLECTION_PATH = `artifacts/${APP_ID}/public/data/loans`;
+    
+    // --- State for Deletion Fix ---
+    let loanToDeleteId = null;
+    let loanToDeleteNumber = null;
+
+    // --- DOM Elements ---
+    const loanForm = document.getElementById('loanForm');
+    const loanTableBody = document.getElementById('loanTableBody');
+    const messageBox = document.getElementById('messageBox');
+    const submitButton = document.getElementById('submitButton');
+    const paidValueInput = document.getElementById('paidValue');
+    const previewValueSpan = document.getElementById('previewValue');
+    const downloadExcelButton = document.getElementById('downloadExcelButton'); 
+    const amountInput = document.getElementById('amount');
+    const amountPreviewSpan = document.getElementById('amountPreview');
+    const filterDateInput = document.getElementById('filterDate');
+    const clearFilterButton = document.getElementById('clearFilterButton');
+    const searchLoanNumberInput = document.getElementById('searchLoanNumber'); 
+    const totalNetValueSpan = document.getElementById('totalNetValueSpan'); 
+    const confirmationModal = document.getElementById('confirmationModal');
+    const modalLoanNumberSpan = document.getElementById('modalLoanNumber');
+    const confirmDeleteButton = document.getElementById('confirmDeleteButton');
+    const cancelButton = document.getElementById('cancelButton');
+    const receiptModal = document.getElementById('receiptModal');
+    const receiptContent = document.getElementById('receiptContent');
+    const printButton = document.getElementById('printButton');
+    const closeReceiptButton = document.getElementById('closeReceiptButton');
+    const whatsappMessageBox = document.getElementById('whatsappMessageBox');
+    const whatsappMessageTitle = document.getElementById('whatsappMessageTitle');
+    const whatsappSendButton = document.getElementById('whatsappSendButton');
+    const userIdDisplay = document.getElementById('userIdDisplay'); 
+
+    let whatsappTimeout = null;
+
+    // --- Utility Functions ---
+
+    function formatCurrency(amount) {
+        const numAmount = parseFloat(amount);
+        if (isNaN(numAmount)) return 'Rs. 0.00';
+        
+        const formatted = new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: 'LKR',
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        }).format(numAmount);
+        
+        return formatted.replace('LKR', 'Rs.').trim().replace(/\s/g, ''); 
+    }
+    
+    function formatDateTime(isoString) {
+        if (!isoString) return { date: 'N/A', time: 'N/A' };
+        
+        // Firestore timestamps might come as objects, convert to Date if necessary
+        const dateObj = isoString.toDate ? isoString.toDate() : new Date(isoString);
+        
+        const date = dateObj.toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+        }).split('/').reverse().join('-'); 
+        
+        const time = dateObj.toLocaleTimeString('en-US', {
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false
+        });
+        
+        return { date, time };
+    }
+
+    function showMessage(message, isError = false) {
+        messageBox.textContent = message;
+        messageBox.className = `mt-4 p-3 rounded-lg ${isError ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`;
+        messageBox.style.display = 'block';
+        setTimeout(() => {
+            messageBox.style.display = 'none';
+        }, 8000); 
+    }
+    
+    function getDateStringFromISO(isoString) {
+        return formatDateTime(isoString).date;
+    }
+    
+    function updateAmountPreview() {
+        const principalAmount = parseFloat(amountInput.value);
+        if (isNaN(principalAmount) || principalAmount <= 0) {
+            amountPreviewSpan.textContent = '+1.5%: Rs. 0.00';
+            return;
+        }
+        const totalWithInterest = principalAmount * 1.015; 
+        amountPreviewSpan.textContent = `+1.5%: ${formatCurrency(totalWithInterest)}`;
+    }
+
+    function updateCalculatedPreview() {
+        const paidValue = parseFloat(paidValueInput.value);
+        if (isNaN(paidValue) || paidValue < 0) {
+            previewValueSpan.textContent = 'Rs. 0.00';
+            return;
+        }
+        const calculatedValue = paidValue * 0.985; 
+        previewValueSpan.textContent = formatCurrency(calculatedValue);
+    }
+    
+    // --- Firebase Data Functions ---
+
+    /**
+     * Initializes Firebase and sets up authentication listener.
+     */
+    async function initializeFirebase() {
+        setLogLevel('debug'); // Enable logging for debugging
+        try {
+            // Use the hardcoded configuration
+            const app = initializeApp(FIREBASE_CONFIG); 
+            db = getFirestore(app);
+            auth = getAuth(app);
+            
+            // 1. Sign In Anonymously (Safest option for external hosting)
+            await signInAnonymously(auth); 
+            
+            // 2. Set Auth Listener
+            onAuthStateChanged(auth, (user) => {
+                if (user) {
+                    userId = user.uid;
+                    isAuthReady = true;
+                    userIdDisplay.textContent = userId;
+                    // Start listening to data only after successful auth
+                    setupRealtimeListener(); 
+                    submitButton.disabled = false;
+                    showMessage("Cloud Database connection successful. Data is live.", false);
+                } else {
+                    userId = null;
+                    isAuthReady = false;
+                    userIdDisplay.textContent = 'Sign In Failed / Anonymous';
+                    submitButton.disabled = true;
+                    console.error("Authentication failed. Cannot access Firestore.");
+                }
+            });
+
+        } catch (error) {
+            console.error("Firebase initialization failed:", error);
+            showMessage("Error connecting to Cloud Database. Check console for details.", true);
+            userIdDisplay.textContent = 'Initialization Error';
+        }
+    }
+
+    /**
+     * Sets up the real-time listener for the loan records collection.
+     */
+    function setupRealtimeListener() {
+        if (!isAuthReady || !db) return;
+
+        const loanCollection = collection(db, LOAN_COLLECTION_PATH);
+        // We use client-side sorting for simplicity, but order by createdAt is usually good practice.
+        const q = query(loanCollection); 
+
+        onSnapshot(q, (snapshot) => {
+            const loans = [];
+            snapshot.forEach((doc) => {
+                const data = doc.data();
+                loans.push({ 
+                    id: doc.id, // Use Firestore's unique ID
+                    ...data,
+                    // Ensure calculatedValue and amount are numbers for safety
+                    calculatedValue: parseFloat(data.calculatedValue || 0),
+                    amount: parseFloat(data.amount || 0)
+                });
+            });
+            
+            // Sort by creation time (newest first) client-side
+            loans.sort((a, b) => (b.createdAt.toMillis() > a.createdAt.toMillis()) ? 1 : -1);
+            
+            currentLoans = loans;
+            filterAndRenderLoans(); 
+            // Only show message if data was fetched without errors
+            if (loans.length > 0) {
+                // Sinhala: දත්ත සජීවීව යාවත්කාලීන විය.
+                console.log(`Live data updated. Total records: ${loans.length}`);
+            }
+        }, (error) => {
+            console.error("Error listening to collection:", error);
+            showMessage("Failed to retrieve live data. Check security rules or network connection.", true);
+            loanTableBody.innerHTML = `<tr><td colspan="8" class="text-center py-4 text-red-500 font-bold">Failed to load data.</td></tr>`;
+        });
+    }
+
+    /**
+     * Adds a new loan record to Firestore.
+     */
+    async function addLoan(loan) {
+        if (!isAuthReady || !db) {
+            showMessage("Not connected to Cloud Database. Try refreshing.", true);
+            return;
+        }
+        
+        submitButton.disabled = true;
+        submitButton.textContent = 'Adding...';
+        
+        try {
+            const calculatedValue = loan.paidValue * 0.985; 
+            const newLoanData = {
+                loanNumber: loan.loanNumber,
+                phoneNumber: loan.phoneNumber,
+                amount: loan.amount, 
+                paidValue: loan.paidValue,
+                calculatedValue: parseFloat(calculatedValue.toFixed(2)), 
+                createdAt: new Date(), // Firestore Timestamp
+                isMarked: false, 
+                addedBy: userId
+            };
+
+            await addDoc(collection(db, LOAN_COLLECTION_PATH), newLoanData);
+
+            showMessage(`Loan number ${loan.loanNumber} successfully added to the Cloud.`, false);
+            loanForm.reset();
+            updateCalculatedPreview();
+            updateAmountPreview(); 
+        } catch (error) {
+            console.error("Error adding document:", error);
+            showMessage(`Error adding record: ${error.message}`, true);
+        } finally {
+            submitButton.disabled = false;
+            submitButton.textContent = 'Add Record';
+        }
+    }
+    
+    /**
+     * Changes the status from Unpaid (false) to Paid (true) permanently in Firestore.
+     */
+    async function togglePaidStatus(id) {
+        if (!isAuthReady || !db) return;
+
+        const loan = currentLoans.find(l => l.id === id);
+        if (!loan || loan.isMarked) return;
+
+        try {
+            const loanRef = doc(db, LOAN_COLLECTION_PATH, id);
+            await updateDoc(loanRef, {
+                isMarked: true,
+                paidAt: new Date() // Record the time of payment confirmation
+            });
+            
+            // Sinhala: Loan number <loanNumber>: සාර්ථකව ගෙවා ඇත.
+            showMessage(`Loan number ${loan.loanNumber}: Payment successfully marked as paid in Cloud.`, false);
+            promptWhatsAppSend(id);
+
+        } catch (error) {
+            console.error("Error updating document:", error);
+            showMessage(`Error updating status: ${error.message}`, true);
+        }
+    }
+
+    /**
+     * Performs the actual deletion of the loan record from Firestore.
+     */
+    async function performActualDelete(id, loanNumber) {
+        if (!isAuthReady || !db) return;
+        
+        try {
+            await deleteDoc(doc(db, LOAN_COLLECTION_PATH, id));
+            showMessage(`Loan number ${loanNumber} successfully deleted from Cloud.`, false);
+        } catch (error) {
+            console.error("Error deleting document:", error);
+            showMessage(`Error deleting record: ${error.message}`, true);
+        }
+    }
+    
+    /**
+     * Stores the loan ID and Number to be deleted and shows the confirmation modal.
+     */
+    function deleteLoan(id, loanNumber) {
+        loanToDeleteId = id;
+        loanToDeleteNumber = loanNumber;
+        modalLoanNumberSpan.textContent = loanNumber;
+        hideWhatsAppPrompt(); 
+        showModal();
+    }
+    
+    // Confirmation Modal show/hide logic
+    function showModal() {
+        confirmationModal.classList.remove('hidden');
+        confirmationModal.classList.add('flex');
+    }
+
+    function hideModal() {
+        confirmationModal.classList.remove('flex');
+        confirmationModal.classList.add('hidden');
+        loanToDeleteId = null;
+        loanToDeleteNumber = null;
+    }
+
+    // --- WhatsApp Prompt Logic ---
+    
+    function hideWhatsAppPrompt() {
+        whatsappMessageBox.classList.remove('flex');
+        whatsappMessageBox.classList.add('hidden');
+        if (whatsappTimeout) {
+            clearTimeout(whatsappTimeout);
+            whatsappTimeout = null;
+        }
+    }
+
+    // Receipt message content in English
+    function generateWhatsAppMessage(loan) {
+        const paidValue = formatCurrency(loan.paidValue);
+        const calculatedValue = formatCurrency(loan.calculatedValue);
+        
+        // Firestore Timestamp object needs to be converted
+        const loanDate = loan.createdAt.toDate ? loan.createdAt.toDate() : new Date(loan.createdAt);
+        const dateString = getDateStringFromISO(loanDate.toISOString());
+        const paymentStatus = loan.isMarked ? 'PAID' : 'UNPAID (Pending Confirmation)';
+
+
+        const message = 
+            `*SIRIWARDANA MOBILE - Official Receipt*
+------------------------------
+*TRANSACTION DETAILS*
+
+Loan Number: ${loan.loanNumber}
+Phone Number: ${loan.phoneNumber}
+Paid Value: ${paidValue}
+Net Calculated Value (-1.5%): ${calculatedValue}
+Date Recorded: ${dateString}
+Status: ${paymentStatus}
+
+Thank you for your business!
+------------------------------
+`;
+        return encodeURIComponent(message);
+    }
+
+    function promptWhatsAppSend(loanId) {
+        const loan = currentLoans.find(l => l.id === loanId);
+        if (!loan) return;
+        
+        let phone = loan.phoneNumber.replace(/\D/g, ''); 
+        if (phone.length === 10 && phone.startsWith('0')) {
+             phone = '94' + phone.substring(1); 
+        } else if (phone.length === 9 && !phone.startsWith('0')) {
+            phone = '94' + phone; 
+        }
+        
+        const message = generateWhatsAppMessage(loan);
+        const whatsappUrl = `https://wa.me/${phone}?text=${message}`;
+
+        whatsappMessageTitle.innerHTML = `Payment Confirmed! Send WhatsApp Receipt for Loan Number <span class="text-indigo-700">${loan.loanNumber}</span>`;
+        whatsappSendButton.href = whatsappUrl;
+
+        whatsappMessageBox.classList.remove('hidden');
+        whatsappMessageBox.classList.add('flex');
+
+        if (whatsappTimeout) clearTimeout(whatsappTimeout);
+        whatsappTimeout = setTimeout(hideWhatsAppPrompt, 20000); 
+    }
+    
+    // --- End WhatsApp Prompt Logic ---
+
+
+    // Receipt Modal logic
+    function showReceipt(id) {
+        const loan = currentLoans.find(l => l.id === id);
+        if (!loan) {
+            showMessage("Record not found.", true);
+            return;
+        }
+        
+        // Handle Firestore Timestamp conversion
+        const loanDate = loan.createdAt.toDate ? loan.createdAt.toDate().toISOString() : loan.createdAt;
+        const { date, time } = formatDateTime(loanDate);
+        
+        const paymentStatusText = loan.isMarked ? 'PAID' : 'UNPAID';
+        const statusColor = loan.isMarked ? 'text-green-700' : 'text-red-700';
+
+
+        const receiptHtml = `
+            <div class="print-area w-full mx-auto font-mono text-sm leading-snug p-2">
+                <div class="text-center mb-4">
+                    <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRn0Hz-y61XQ-3RgTeYFbMDN4ZaVuJozrSYJA&s" 
+                         alt="App Logo" 
+                         class="mx-auto h-16 w-16 object-cover rounded-xl mb-2"
+                         onerror="this.onerror=null; this.src='https://placehold.co/64x64/cccccc/000000?text=Logo';">
+
+                    <h1 class="text-xl font-extrabold text-gray-900 uppercase">SIRIWARDANA MOBILE</h1>
+                    <p class="text-sm font-medium pt-1 text-gray-800">0767778220</p>
+                    <p class="text-xs text-gray-600">Kalugamuwa Road, Wariyapola</p>
+                </div>
+                
+                <div class="border-b border-gray-900 border-dashed mb-4 pt-2"></div> 
+                
+                <div class="text-center mb-4 pb-2">
+                    <h2 class="text-lg font-bold text-gray-900">TRANSACTION RECEIPT</h2>
+                    <p class="text-xs text-gray-700">Loan Records Tracking Tool</p>
+                </div>
+                
+                <div class="space-y-1">
+                    <div class="flex justify-between">
+                        <span class="font-medium">Date/Time:</span>
+                        <span class="font-semibold">${date} ${time}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="font-medium">Loan Number:</span>
+                        <span class="font-extrabold text-indigo-700">${loan.loanNumber}</span>
+                    </div>
+                    <div class="flex justify-between border-b pb-2">
+                        <span class="font-medium">Phone Number:</span>
+                        <span class="font-semibold">${loan.phoneNumber}</span>
+                    </div>
+                    
+                    <h2 class="text-base font-bold pt-2 border-t border-dashed border-gray-400 text-center">PAYMENT SUMMARY</h2>
+                    
+                    <div class="flex justify-between text-base pt-2">
+                        <span class="font-medium">Principal Loan Amount:</span>
+                        <span class="font-bold">${formatCurrency(loan.amount)}</span>
+                    </div>
+                    
+                    <div class="flex justify-between text-lg pt-1">
+                        <span class="font-bold">Customer PAID Value:</span>
+                        <span class="font-extrabold text-indigo-700">${formatCurrency(loan.paidValue)}</span>
+                    </div>
+
+                    <div class="flex justify-between pt-2 border-t border-dashed border-gray-400 mt-2">
+                        <span class="font-bold text-gray-800">Net Value (-1.5% Deduction):</span>
+                        <span class="font-extrabold text-green-700">${formatCurrency(loan.calculatedValue)}</span>
+                    </div>
+                    
+                    <p class="pt-4 text-xs text-center border-t mt-4 border-dashed border-gray-400 font-bold ${statusColor}">
+                        Payment Status: ${paymentStatusText}
+                    </p>
+                    <p class="text-xs text-center pt-2">Thank you! Come again.</p>
+                </div>
+            </div>
+        `;
+        
+        receiptContent.innerHTML = receiptHtml;
+        receiptModal.classList.remove('hidden');
+        receiptModal.classList.add('flex');
+    }
+
+    function closeReceiptModal() {
+        receiptModal.classList.remove('flex');
+        receiptModal.classList.add('hidden');
+    }
+
+    function printReceipt() {
+        window.print();
+    }
+
+
+    // Main function to filter data based on input and render
+    function filterAndRenderLoans() {
+        const selectedDate = filterDateInput.value; 
+        const searchInput = searchLoanNumberInput.value.toLowerCase().trim(); 
+        
+        let loansToRender = currentLoans;
+
+        // 1. Filter by Date (if selected)
+        if (selectedDate) {
+            loansToRender = loansToRender.filter(loan => {
+                // Handle Firestore Timestamp conversion for date comparison
+                const loanDate = loan.createdAt.toDate ? loan.createdAt.toDate().toISOString() : loan.createdAt;
+                return getDateStringFromISO(loanDate) === selectedDate;
+            });
+        } 
+        
+        // 2. Filter by Loan Number Search (if input is present)
+        if (searchInput) {
+            loansToRender = loansToRender.filter(loan => {
+                return loan.loanNumber.toLowerCase().includes(searchInput);
+            });
+            
+            if (loansToRender.length > 0) {
+                if (selectedDate) {
+                    showMessage(`Found ${loansToRender.length} records containing loan number '${searchInput}' for date ${selectedDate}.`, false);
+                } else {
+                    showMessage(`Found ${loansToRender.length} records containing loan number '${searchInput}'.`, false);
+                }
+            } else if (searchInput) {
+                 showMessage(`No records found containing loan number '${searchInput}'.`, true);
+            }
+        } else if (selectedDate && !searchInput && loansToRender.length === 0) {
+             showMessage(`No records found for date ${selectedDate}.`, true);
+        }
+
+        // --- Calculate Total for visible records ---
+        let totalNetValue = loansToRender.reduce((sum, loan) => sum + loan.calculatedValue, 0);
+        
+        if (totalNetValueSpan) {
+            totalNetValueSpan.textContent = formatCurrency(totalNetValue);
+        }
+        // --- END Calculate Total ---
+
+        renderLoans(loansToRender);
+    }
+    
+    // Renders the provided array of loans
+    function renderLoans(loans) {
+        if (loans.length === 0) {
+            const filterActive = filterDateInput.value || searchLoanNumberInput.value;
+            const message = filterActive 
+                ? 'No records match the current filters.'
+                : isAuthReady ? 'No loan records found in the Cloud Database. Add a new loan above.' : 'Connecting to Cloud Database...';
+                
+            loanTableBody.innerHTML = `<tr><td colspan="8" class="text-center py-4 text-gray-500">${message}</td></tr>`;
+            return;
+        }
+
+        loanTableBody.innerHTML = loans.map((loan, index) => {
+            // Handle Firestore Timestamp conversion
+            const loanDate = loan.createdAt.toDate ? loan.createdAt.toDate().toISOString() : loan.createdAt;
+            const { date, time } = formatDateTime(loanDate); 
+            
+            const isEven = index % 2 === 0;
+            const isPaid = loan.isMarked; 
+            
+            let rowClass = (isPaid ? 'paid-row' : (isEven ? 'bg-gray-50' : 'bg-white'));
+            
+            const paidValueFormatted = formatCurrency(loan.paidValue);
+            const calculatedValueFormatted = formatCurrency(loan.calculatedValue);
+
+            const checkboxDisabled = isPaid ? 'disabled' : '';
+            const checkboxCursor = isPaid ? 'cursor-not-allowed opacity-60' : 'cursor-pointer';
+            
+            // Receipt button is always active/enabled
+            const receiptButtonClass = 'text-blue-600 hover:text-blue-800 hover:bg-blue-100';
+            const receiptButtonTitle = 'View Receipt (ගෙවීම සනාථ නොකළද ලබාගත හැක)'; 
+            
+            return `
+                <tr class="${rowClass} hover:bg-gray-100 transition duration-100">
+                    <td class="px-4 py-3 whitespace-nowrap text-xs text-center font-medium text-gray-500">${date}</td>
+                    <td class="px-4 py-3 whitespace-nowrap text-xs text-center font-mono text-indigo-500">${time}</td>
+                    
+                    <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">${loan.loanNumber}</td>
+                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">${loan.phoneNumber}</td>
+                    <td class="px-4 py-3 whitespace-nowrap text-sm font-semibold text-center text-indigo-700">${paidValueFormatted}</td>
+                    <td class="px-4 py-3 whitespace-nowrap text-sm font-semibold text-center text-green-700">${calculatedValueFormatted}</td>
+                    <td class="px-4 py-3 whitespace-nowrap text-center text-sm flex flex-col space-y-1 sm:block sm:space-y-0">
+                        <button onclick="window.deleteLoan('${loan.id}', '${loan.loanNumber}')" 
+                                class="text-red-600 hover:text-red-800 font-semibold transition duration-150 p-2 rounded-lg hover:bg-red-100 w-full sm:w-auto">
+                            Delete
+                        </button>
+                         <button onclick="window.showReceipt('${loan.id}')"
+                                title="${receiptButtonTitle}"
+                                class="font-semibold transition duration-150 p-2 rounded-lg mt-1 sm:mt-0 ml-0 sm:ml-2 w-full sm:w-auto ${receiptButtonClass}">
+                            Receipt
+                        </button>
+                    </td>
+                    <td class="px-4 py-3 whitespace-nowrap text-center text-sm border-l border-gray-200">
+                        <input type="checkbox" 
+                               ${isPaid ? 'checked' : ''} 
+                               ${checkboxDisabled}
+                               onchange="window.togglePaidStatus('${loan.id}')"
+                               class="h-5 w-5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 ${checkboxCursor}">
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    // --- Download as CSV Function ---
+    function downloadLoansAsCSV() {
+        const selectedDate = filterDateInput.value; 
+        const searchInput = searchLoanNumberInput.value.toLowerCase().trim(); 
+        
+        let loansToCopy = currentLoans;
+
+        if (selectedDate) {
+            loansToCopy = loansToCopy.filter(loan => {
+                 const loanDate = loan.createdAt.toDate ? loan.createdAt.toDate().toISOString() : loan.createdAt;
+                 return getDateStringFromISO(loanDate) === selectedDate;
+            });
+        } 
+        
+        if (searchInput) {
+            loansToCopy = loansToCopy.filter(loan => loan.loanNumber.toLowerCase().includes(searchInput));
+        }
+
+        if (loansToCopy.length === 0) {
+            showMessage("No data to download.", true);
+            return;
+        }
+
+        const SEPARATOR = ','; 
+        const BOM = "\ufeff"; 
+
+        const headers = [
+            "Reported Date",                   
+            "Reported Time",
+            "Loan Number",                         
+            "Phone Number",                     
+            "Principal Loan Amount",                     
+            "Customer Paid Value",           
+            "Calculated Net Value (-1.5%)",
+            "Paid Status" 
+        ];
+        
+        const csvRows = loansToCopy.map(loan => {
+            const loanDate = loan.createdAt.toDate ? loan.createdAt.toDate().toISOString() : loan.createdAt;
+            const { date, time } = formatDateTime(loanDate);
+            const paidStatus = loan.isMarked ? 'PAID' : 'UNPAID';
+
+            return [
+                `"${date}"`,
+                `"${time}"`, 
+                `"${loan.loanNumber}"`, 
+                `"${loan.phoneNumber}"`, 
+                loan.amount,             
+                loan.paidValue,          
+                loan.calculatedValue,
+                `"${paidStatus}"`
+            ].join(SEPARATOR); 
+        });
+
+        const csvContent = BOM + [
+            headers.join(SEPARATOR), 
+            ...csvRows
+        ].join('\n');
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        
+        a.href = url;
+        a.download = `Loan_Records_${getDateStringFromISO(new Date().toISOString())}.csv`;
+        
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        showMessage("✅ Filtered records successfully downloaded as Excel (CSV) file.", false);
+    }
+
+    // --- Event Listeners ---
+    paidValueInput.addEventListener('input', updateCalculatedPreview);
+    amountInput.addEventListener('input', updateAmountPreview); 
+    filterDateInput.addEventListener('change', filterAndRenderLoans);
+    searchLoanNumberInput.addEventListener('input', filterAndRenderLoans); 
+    
+    confirmDeleteButton.addEventListener('click', () => {
+        if (loanToDeleteId && loanToDeleteNumber) {
+            performActualDelete(loanToDeleteId, loanToDeleteNumber);
+            hideModal(); 
+        } else {
+            hideModal();
+        }
+    });
+
+    cancelButton.addEventListener('click', hideModal);
+    
+    closeReceiptButton.addEventListener('click', closeReceiptModal);
+    printButton.addEventListener('click', printReceipt);
+    
+    clearFilterButton.addEventListener('click', function() {
+        filterDateInput.value = ''; 
+        searchLoanNumberInput.value = ''; 
+        filterAndRenderLoans();      
+        showMessage('Filters and search cleared. Showing all records.', false);
+    });
+    
+    loanForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        const loanNumber = document.getElementById('loanNumber').value.trim();
+        const phoneNumber = document.getElementById('phoneNumber').value.trim();
+        const amount = parseFloat(document.getElementById('amount').value);
+        const paidValue = parseFloat(document.getElementById('paidValue').value);
+
+        if (!isAuthReady) {
+            showMessage("Please wait for Cloud Database connection before adding records.", true);
+            return;
+        }
+
+        if (isNaN(amount) || isNaN(paidValue) || amount <= 0 || paidValue < 0) {
+            showMessage("Please enter valid numeric values for Amount and Paid Value.", true);
+            return;
+        }
+
+        const newLoan = { loanNumber, phoneNumber, amount, paidValue };
+        addLoan(newLoan);
+    });
+    
+    downloadExcelButton.addEventListener('click', downloadLoansAsCSV);
+    
+    // Expose functions to the global scope
+    window.deleteLoan = deleteLoan;
+    window.togglePaidStatus = togglePaidStatus;
+    window.showReceipt = showReceipt;
+    window.showMessage = showMessage;
+    
+    loanForm.addEventListener('input', hideWhatsAppPrompt);
+    filterDateInput.addEventListener('change', hideWhatsAppPrompt);
+    searchLoanNumberInput.addEventListener('input', hideWhatsAppPrompt);
+
+
+    window.onload = () => {
+        initializeFirebase();
+        updateCalculatedPreview(); 
+        updateAmountPreview(); 
+    };
+
+</script>
+</body>
+</html>
