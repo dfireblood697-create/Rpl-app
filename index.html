@@ -142,7 +142,8 @@
 
     <!-- User ID and Status - UPDATED FOR FIREBASE -->
     <div id="status" class="mt-4 p-3 bg-indigo-50 border border-indigo-200 rounded-lg shadow-sm text-sm text-indigo-700">
-        <p class="font-semibold">User ID: <span id="userIdDisplay" class="font-mono text-xs bg-indigo-100 px-2 py-1 rounded">Authenticating...</span></p>
+        <!-- Sinhala: පද්ධති තත්ත්වය:  -->
+        <p class="font-semibold">System Status: <span id="userIdDisplay" class="font-mono text-xs bg-indigo-100 px-2 py-1 rounded">Attempting connection...</span></p>
         <!-- Sinhala: දත්ත දැන් Cloud Database (Firebase Firestore) වෙත සුරැකේ. -->
         <p class="mt-1 text-xs text-green-700 font-medium">Data is now saved to the Cloud Database (Firebase Firestore).</p>
     </div>
@@ -316,15 +317,9 @@
 
     // --- Firebase Setup (Using Environment Variables) ---
     // These variables are provided by the platform for secure and hassle-free connection.
-    const firebaseConfig = {
-  apiKey: "AIzaSyBcn75ltTrkCsR4KJFHNvYiCeMtHB5Xv3s",
-  authDomain: "rplp-44da4.firebaseapp.com",
-  projectId: "rplp-44da4",
-  storageBucket: "rplp-44da4.firebasestorage.app",
-  messagingSenderId: "76131736218",
-  appId: "1:76131736218:web:141f2800787d8e67929d23",
-  measurementId: "G-RWLXMVR86K"
-};
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+    const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+    const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
     let db;
     let auth;
@@ -447,46 +442,59 @@
      */
     async function initializeFirebase() {
         setLogLevel('debug'); // Enable logging for debugging
+        userIdDisplay.textContent = 'Attempting connection...'; // Sinhala: සම්බන්ධ වීමට උත්සාහ කරයි...
+        submitButton.disabled = true;
+
         try {
             if (!firebaseConfig || Object.keys(firebaseConfig).length === 0) {
-                throw new Error("Firebase configuration not found.");
+                throw new Error("Firebase configuration not found. Check environment setup.");
             }
             
             const app = initializeApp(firebaseConfig); 
             db = getFirestore(app);
             auth = getAuth(app);
             
-            // 1. Authenticate using the provided custom token or fall back to anonymous sign-in
+            // 1. Authenticate using the provided custom token (MANDATORY in this environment)
             if (initialAuthToken) {
+                console.log("Attempting sign-in with Custom Auth Token...");
+                // Note: We use the await here to ensure we try the sign-in immediately.
                 await signInWithCustomToken(auth, initialAuthToken);
             } else {
-                await signInAnonymously(auth); 
+                // If token is explicitly missing, we fall back to anonymous, as the issue 
+                // might be that the environment variable is simply undefined.
+                console.warn("Initial Auth Token is missing. Falling back to Anonymous Sign-In...");
+                await signInAnonymously(auth);
             }
             
-            // 2. Set Auth Listener
+            // 2. Set Auth Listener - This is the definitive source of truth
+            // This listener will fire whether custom token sign-in succeeded or anonymous sign-in succeeded/failed.
             onAuthStateChanged(auth, (user) => {
                 if (user) {
                     userId = user.uid;
                     isAuthReady = true;
-                    userIdDisplay.textContent = userId;
+                    userIdDisplay.textContent = `Connected (User ID: ${userId.substring(0, 8)}...)`;
                     // Start listening to data only after successful auth
                     setupRealtimeListener(); 
-                    submitButton.disabled = false;
+                    submitButton.disabled = false; // <<< THIS IS THE KEY LINE TO ENABLE THE BUTTON
+                    // Sinhala: Cloud Database සම්බන්ධතාවය සාර්ථකයි.
                     showMessage("Cloud Database connection successful. Data is live.", false);
                 } else {
                     userId = null;
                     isAuthReady = false;
-                    userIdDisplay.textContent = 'Sign In Failed / Anonymous';
+                    userIdDisplay.textContent = 'Sign In Failed';
                     submitButton.disabled = true;
-                    console.error("Authentication failed. Cannot access Firestore. Check Security Rules.");
+                    console.error("Authentication failed or user signed out. Cannot access Firestore.");
+                    // Sinhala: දත්ත ගබඩාව දෝෂය: පරිශීලකයා හඳුනාගෙන නොමැත.
+                    showMessage("Database Error: User not authenticated. Check security rules and system logs.", true);
                 }
             });
 
         } catch (error) {
             console.error("Firebase initialization failed:", error);
-            // Sinhala: Cloud Database හා සම්බන්ධ වීමේ දෝෂයකි. (පද්ධති සැකසුම් පරීක්ෂා කරන්න.)
-            showMessage(`Error connecting to Cloud Database: ${error.message}. Check console for details.`, true);
+            // Sinhala: Cloud Database හා සම්බන්ධ වීමේ දෝෂයකි.
+            showMessage(`දත්ත ගබඩාව සම්බන්ධ කිරීමේ දෝෂයකි: ${error.message}`, true);
             userIdDisplay.textContent = 'Initialization Error';
+            submitButton.disabled = true;
         }
     }
 
