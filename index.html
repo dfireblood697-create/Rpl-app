@@ -316,9 +316,15 @@
 
     // --- Firebase Setup (Using Environment Variables) ---
     // These variables are provided by the platform for secure and hassle-free connection.
-    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-    const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
-    const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+    const firebaseConfig = {
+  apiKey: "AIzaSyBcn75ltTrkCsR4KJFHNvYiCeMtHB5Xv3s",
+  authDomain: "rplp-44da4.firebaseapp.com",
+  projectId: "rplp-44da4",
+  storageBucket: "rplp-44da4.firebasestorage.app",
+  messagingSenderId: "76131736218",
+  appId: "1:76131736218:web:141f2800787d8e67929d23",
+  measurementId: "G-RWLXMVR86K"
+};
 
     let db;
     let auth;
