@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Loan Records Tracking Tool (Local Storage)</title>
+    <!-- UPDATED TITLE -->
+    <title>Siriwardana Mobile - RPL Loan Records Tracker (Local Storage)</title>
     
     <!-- ********** ADDITIONS FOR DESKTOP/HOMESCREEN ICON & FAVICON ********** -->
     <link rel="icon" type="image/png" href="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRn0Hz-y61XQ-3RgTeYFbMDN4ZaVuJozrSYJA&s">
@@ -65,53 +66,48 @@
             animation: pulse-logo 1.5s infinite ease-in-out;
         }
         
-        /* === Print Specific Styles for Thermal Printer 80mm (Approx 300px) === */
+        /* === FIXED: Print Specific Styles for XP-80 Thermal Printer (300px) === */
         @media print {
-            body > *:not(#receiptModal) {
+            /* 1. Hide everything on the page */
+            body > * {
                 display: none !important;
             }
             
-            #receiptModal {
+            /* 2. Show ONLY the dedicated print container, forcing 300px width */
+            #printContainer {
                 display: block !important;
-                position: fixed !important;
-                top: 0;
-                left: 0;
-                background: none !important; 
-                padding: 0 !important;
-                margin: 0 !important;
-                overflow: visible !important;
-                width: 100% !important;
-            }
-            
-            #receiptModal > div {
-                max-width: 300px !important; 
-                width: 300px !important;
+                position: absolute !important;
+                top: 0 !important;
+                left: 50% !important;
+                transform: translateX(-50%) !important;
+                width: 300px !important; /* XP-80 Thermal printer standard width */
+                max-width: 300px !important;
                 margin: 0 auto !important;
-                height: auto !important;
-                max-height: none !important;
-                overflow: visible !important;
-                box-shadow: none !important;
-                border-radius: 0 !important;
                 padding: 0 !important;
+                box-shadow: none !important;
+                overflow: hidden !important;
+                z-index: 99999 !important;
             }
             
-            #receiptModal .sticky, 
-            #receiptModal button,
-            #receiptModal .bg-gray-100 {
-                display: none !important;
-            }
-            
+            /* 3. Base styles for printout */
             body {
                 color: #000 !important;
                 background-color: #fff !important;
                 font-family: monospace !important; 
                 font-size: 10pt !important;
             }
-
-            #receiptContent {
+            
+            /* 4. Ensure receipt content is clean */
+            #printContainer .print-area {
                 padding: 10px 5px !important;
+                color: #000 !important; /* Force black text */
+                font-family: monospace !important;
             }
             
+            /* 5. Cleanup */
+            #receiptModal {
+                display: none !important;
+            }
             .border-dashed {
                 border-style: dashed !important;
                 border-width: 1px !important;
@@ -135,8 +131,11 @@
             <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRn0Hz-y61XQ-3RgTeYFbMDN4ZaVuJozrSYJA&s" 
                  alt="App Logo" 
                  class="h-16 w-16 object-cover rounded-xl shadow-md animate-pulse-logo"
-                 onerror="this.onerror=null; this.src='https://placehold.co/64x64/cccccc/000000?text=L';">
-            <h1 class="text-3xl font-bold text-gray-800">Loan Records Tracking Tool</h1>
+                 onerror="this.onerror=null; this.src='https://placehold.co/64x64/cccccc/000000?text=RPL';">
+            <!-- RETAINING "SIRIWARDANA MOBILE" -->
+            <h1 class="text-3xl font-bold text-gray-800">Siriwardana Mobile</h1>
+            <!-- UPDATED SUBTITLE TO "RPL" -->
+            <p class="text-lg font-medium text-indigo-600">RPL</p>
         </div>
     </header>
 
@@ -311,6 +310,10 @@
 
 </div>
 
+<!-- Hidden container used ONLY for printing - FIX for blank page -->
+<div id="printContainer" class="hidden"></div>
+
+
 <!-- JavaScript Logic (using Local Storage) -->
 <script>
     // --- Local Storage Setup ---
@@ -344,6 +347,7 @@
     const whatsappSendButton = document.getElementById('whatsappSendButton');
     const userIdDisplay = document.getElementById('userIdDisplay'); 
     const cloudInfo = document.getElementById('cloudInfo');
+    const printContainer = document.getElementById('printContainer'); // Dedicated print container
 
     let whatsappTimeout = null;
 
@@ -582,7 +586,8 @@
 
 
         const message = 
-            `*SIRIWARDANA MOBILE - Official Receipt*
+            // RETAINED "Siriwardana Mobile"
+            `*Siriwardana Mobile - RPL Official Receipt*
 ------------------------------
 *TRANSACTION DETAILS*
 
@@ -646,9 +651,10 @@ Thank you for your business!
                     <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRn0Hz-y61XQ-3RgTeYFbMDN4ZaVuJozrSYJA&s" 
                          alt="App Logo" 
                          class="mx-auto h-16 w-16 object-cover rounded-xl mb-2"
-                         onerror="this.onerror=null; this.src='https://placehold.co/64x64/cccccc/000000?text=Logo';">
+                         onerror="this.onerror=null; this.src='https://placehold.co/64x64/cccccc/000000?text=RPL';">
 
-                    <h1 class="text-xl font-extrabold text-gray-900 uppercase">SIRIWARDANA MOBILE</h1>
+                    <!-- RETAINED "Siriwardana Mobile" -->
+                    <h1 class="text-xl font-extrabold text-gray-900 uppercase">Siriwardana Mobile</h1>
                     <p class="text-sm font-medium pt-1 text-gray-800">0767778220</p>
                     <p class="text-xs text-gray-600">Kalugamuwa Road, Wariyapola</p>
                 </div>
@@ -657,7 +663,8 @@ Thank you for your business!
                 
                 <div class="text-center mb-4 pb-2">
                     <h2 class="text-lg font-bold text-gray-900">TRANSACTION RECEIPT</h2>
-                    <p class="text-xs text-gray-700">Loan Records Tracking Tool</p>
+                    <!-- UPDATED SUBTITLE TO "RPL" -->
+                    <p class="text-xs text-gray-700">RPL</p>
                 </div>
                 
                 <div class="space-y-1">
@@ -700,6 +707,8 @@ Thank you for your business!
         `;
         
         receiptContent.innerHTML = receiptHtml;
+        printContainer.innerHTML = receiptHtml; // FIX: Copy content to dedicated print area
+
         receiptModal.classList.remove('hidden');
         receiptModal.classList.add('flex');
     }
@@ -710,6 +719,7 @@ Thank you for your business!
     }
 
     function printReceipt() {
+        // The CSS @media print query will now automatically show only #printContainer
         window.print();
     }
 
@@ -871,7 +881,7 @@ Thank you for your business!
         const a = document.createElement('a');
         
         a.href = url;
-        a.download = `Loan_Records_Local_${getDateStringFromISO(new Date().toISOString())}.csv`;
+        a.download = `Siriwardana_Mobile_RPL_Records_Local_${getDateStringFromISO(new Date().toISOString())}.csv`;
         
         document.body.appendChild(a);
         a.click();
