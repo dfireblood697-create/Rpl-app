@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Loan Records Tracking Tool (Cloud)</title>
+    <title>Loan Records Tracking Tool (Local Storage)</title>
     
     <!-- ********** ADDITIONS FOR DESKTOP/HOMESCREEN ICON & FAVICON ********** -->
     <link rel="icon" type="image/png" href="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRn0Hz-y61XQ-3RgTeYFbMDN4ZaVuJozrSYJA&s">
@@ -140,12 +140,12 @@
         </div>
     </header>
 
-    <!-- User ID and Status - UPDATED FOR FIREBASE -->
-    <div id="status" class="mt-4 p-3 bg-indigo-50 border border-indigo-200 rounded-lg shadow-sm text-sm text-indigo-700">
+    <!-- User ID and Status - UPDATED FOR LOCAL STORAGE -->
+    <div id="status" class="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg shadow-sm text-sm text-yellow-800">
         <!-- Sinhala: පද්ධති තත්ත්වය:  -->
-        <p class="font-semibold">System Status: <span id="userIdDisplay" class="font-mono text-xs bg-indigo-100 px-2 py-1 rounded">Attempting connection...</span></p>
-        <!-- Sinhala: දත්ත දැන් Cloud Database (Firebase Firestore) වෙත සුරැකේ. -->
-        <p class="mt-1 text-xs text-green-700 font-medium">Data is now saved to the Cloud Database (Firebase Firestore).</p>
+        <p class="font-semibold">System Status: <span id="userIdDisplay" class="font-mono text-xs bg-yellow-100 px-2 py-1 rounded">Local Storage Mode</span></p>
+        <!-- Sinhala: දත්ත දැන් ඔබගේ බ්‍රව්සරයේ (Local Storage) සුරැකේ. වෙනත් අයෙකුට පෙනෙන්නේ නැත. -->
+        <p id="cloudInfo" class="mt-1 text-xs text-yellow-700 font-medium">Data is now saved to your browser (Local Storage). It is not visible to others.</p>
     </div>
 
     <!-- Data Entry Form -->
@@ -177,8 +177,8 @@
                 -1.5% Calculated Value (After deduction): <span id="previewValue" class="font-bold">Rs. 0.00</span>
             </div>
 
-            <button type="submit" id="submitButton" disabled
-                    class="md:col-span-2 bg-indigo-600 text-white p-3 rounded-lg font-semibold hover:bg-indigo-700 transition duration-150 shadow-md disabled:opacity-50">
+            <button type="submit" id="submitButton"
+                    class="md:col-span-2 bg-indigo-600 text-white p-3 rounded-lg font-semibold hover:bg-indigo-700 transition duration-150 shadow-md">
                 Add Record
             </button>
         </form>
@@ -255,7 +255,7 @@
                 </thead>
                 <tbody id="loanTableBody" class="bg-white divide-y divide-gray-200">
                     <!-- Data rows will be inserted here by JavaScript -->
-                    <tr><td colspan="8" class="text-center py-4 text-gray-500">Connecting to Cloud Database...</td></tr>
+                    <tr><td colspan="8" class="text-center py-4 text-gray-500">Loading Local Data...</td></tr>
                 </tbody>
             </table>
         </div>
@@ -265,6 +265,9 @@
     <footer class="mt-10 mb-4 p-4 text-center border-t border-gray-200">
         <p class="text-xs text-gray-500 font-medium">
             Developed by <span class="font-semibold text-indigo-600">Mithila</span> & Consultation by <span class="font-semibold text-indigo-600">Gayan</span>
+        </p>
+        <p class="text-xs text-red-500 font-medium mt-1">
+            *Note: This version uses Local Storage and data is only visible on this browser.
         </p>
     </footer>
 
@@ -308,33 +311,12 @@
 
 </div>
 
-<!-- JavaScript Logic (using Firebase Firestore) -->
-<script type="module">
-    // --- Firebase Imports ---
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-    import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-    import { getFirestore, doc, addDoc, updateDoc, deleteDoc, onSnapshot, collection, query, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-    // --- Firebase Setup (Using Environment Variables) ---
-    // These variables are provided by the platform for secure and hassle-free connection.
-    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-    const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
-    const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-
-    let db;
-    let auth;
-    let userId = null;
-    let isAuthReady = false;
+<!-- JavaScript Logic (using Local Storage) -->
+<script>
+    // --- Local Storage Setup ---
+    const LOCAL_STORAGE_KEY = 'loan_records_mithila';
     let currentLoans = [];
     
-    // Public path for shop/collaborative data
-    // Data will be stored in: artifacts/{appId}/public/data/loans
-    const LOAN_COLLECTION_PATH = `artifacts/${appId}/public/data/loans`;
-    
-    // --- State for Deletion Fix ---
-    let loanToDeleteId = null;
-    let loanToDeleteNumber = null;
-
     // --- DOM Elements ---
     const loanForm = document.getElementById('loanForm');
     const loanTableBody = document.getElementById('loanTableBody');
@@ -361,6 +343,7 @@
     const whatsappMessageTitle = document.getElementById('whatsappMessageTitle');
     const whatsappSendButton = document.getElementById('whatsappSendButton');
     const userIdDisplay = document.getElementById('userIdDisplay'); 
+    const cloudInfo = document.getElementById('cloudInfo');
 
     let whatsappTimeout = null;
 
@@ -383,8 +366,7 @@
     function formatDateTime(isoString) {
         if (!isoString) return { date: 'N/A', time: 'N/A' };
         
-        // Firestore timestamps might come as objects, convert to Date if necessary
-        const dateObj = isoString.toDate ? isoString.toDate() : new Date(isoString);
+        const dateObj = new Date(isoString);
         
         const date = dateObj.toLocaleDateString('en-US', {
             year: 'numeric',
@@ -435,142 +417,83 @@
         previewValueSpan.textContent = formatCurrency(calculatedValue);
     }
     
-    // --- Firebase Data Functions ---
+    // --- Local Storage Data Functions ---
 
     /**
-     * Initializes Firebase and sets up authentication listener.
+     * Loads loans from Local Storage.
      */
-    async function initializeFirebase() {
-        setLogLevel('debug'); // Enable logging for debugging
-        userIdDisplay.textContent = 'Attempting connection...'; // Sinhala: සම්බන්ධ වීමට උත්සාහ කරයි...
-        submitButton.disabled = true;
-
+    function getLoansFromLocal() {
         try {
-            if (!firebaseConfig || Object.keys(firebaseConfig).length === 0) {
-                throw new Error("Firebase configuration not found. Check environment setup.");
-            }
-            
-            const app = initializeApp(firebaseConfig); 
-            db = getFirestore(app);
-            auth = getAuth(app);
-            
-            // 1. Authenticate using the provided custom token (MANDATORY in this environment)
-            if (initialAuthToken) {
-                console.log("Attempting sign-in with Custom Auth Token...");
-                // Note: We use the await here to ensure we try the sign-in immediately.
-                await signInWithCustomToken(auth, initialAuthToken);
-            } else {
-                // If token is explicitly missing, we fall back to anonymous, as the issue 
-                // might be that the environment variable is simply undefined.
-                console.warn("Initial Auth Token is missing. Falling back to Anonymous Sign-In...");
-                await signInAnonymously(auth);
-            }
-            
-            // 2. Set Auth Listener - This is the definitive source of truth
-            // This listener will fire whether custom token sign-in succeeded or anonymous sign-in succeeded/failed.
-            onAuthStateChanged(auth, (user) => {
-                if (user) {
-                    userId = user.uid;
-                    isAuthReady = true;
-                    userIdDisplay.textContent = `Connected (User ID: ${userId.substring(0, 8)}...)`;
-                    // Start listening to data only after successful auth
-                    setupRealtimeListener(); 
-                    submitButton.disabled = false; // <<< THIS IS THE KEY LINE TO ENABLE THE BUTTON
-                    // Sinhala: Cloud Database සම්බන්ධතාවය සාර්ථකයි.
-                    showMessage("Cloud Database connection successful. Data is live.", false);
-                } else {
-                    userId = null;
-                    isAuthReady = false;
-                    userIdDisplay.textContent = 'Sign In Failed';
-                    submitButton.disabled = true;
-                    console.error("Authentication failed or user signed out. Cannot access Firestore.");
-                    // Sinhala: දත්ත ගබඩාව දෝෂය: පරිශීලකයා හඳුනාගෙන නොමැත.
-                    showMessage("Database Error: User not authenticated. Check security rules and system logs.", true);
-                }
-            });
-
-        } catch (error) {
-            console.error("Firebase initialization failed:", error);
-            // Sinhala: Cloud Database හා සම්බන්ධ වීමේ දෝෂයකි.
-            showMessage(`දත්ත ගබඩාව සම්බන්ධ කිරීමේ දෝෂයකි: ${error.message}`, true);
-            userIdDisplay.textContent = 'Initialization Error';
-            submitButton.disabled = true;
+            const data = localStorage.getItem(LOCAL_STORAGE_KEY);
+            return data ? JSON.parse(data) : [];
+        } catch (e) {
+            console.error("Error reading Local Storage:", e);
+            showMessage("Error loading data from local storage. Data might be corrupted.", true);
+            return [];
         }
     }
 
     /**
-     * Sets up the real-time listener for the loan records collection.
+     * Saves current loans array to Local Storage.
      */
-    function setupRealtimeListener() {
-        if (!isAuthReady || !db) return;
-
-        const loanCollection = collection(db, LOAN_COLLECTION_PATH);
-        // We use client-side sorting for simplicity, but order by createdAt is usually good practice.
-        const q = query(loanCollection); 
-
-        onSnapshot(q, (snapshot) => {
-            const loans = [];
-            snapshot.forEach((doc) => {
-                const data = doc.data();
-                loans.push({ 
-                    id: doc.id, // Use Firestore's unique ID
-                    ...data,
-                    // Ensure calculatedValue and amount are numbers for safety
-                    calculatedValue: parseFloat(data.calculatedValue || 0),
-                    amount: parseFloat(data.amount || 0)
-                });
-            });
-            
-            // Sort by creation time (newest first) client-side
-            loans.sort((a, b) => (b.createdAt.toMillis() > a.createdAt.toMillis()) ? 1 : -1);
-            
-            currentLoans = loans;
-            filterAndRenderLoans(); 
-            // Only show message if data was fetched without errors
-            if (loans.length > 0) {
-                // Sinhala: දත්ත සජීවීව යාවත්කාලීන විය.
-                console.log(`Live data updated. Total records: ${loans.length}`);
-            }
-        }, (error) => {
-            console.error("Error listening to collection:", error);
-            showMessage("Failed to retrieve live data. Check security rules or network connection.", true);
-            loanTableBody.innerHTML = `<tr><td colspan="8" class="text-center py-4 text-red-500 font-bold">Failed to load data.</td></tr>`;
-        });
-    }
-
-    /**
-     * Adds a new loan record to Firestore.
-     */
-    async function addLoan(loan) {
-        if (!isAuthReady || !db) {
-            showMessage("Not connected to Cloud Database. Try refreshing.", true);
-            return;
+    function saveLoansToLocal() {
+        try {
+            localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(currentLoans));
+        } catch (e) {
+            console.error("Error writing to Local Storage:", e);
+            showMessage("Error saving data to local storage. Storage limit reached?", true);
         }
+    }
+    
+    /**
+     * Loads initial data and sets up the app for Local Storage mode.
+     */
+    function initializeApp() {
+        currentLoans = getLoansFromLocal();
+        // Sort by creation time (newest first) client-side
+        currentLoans.sort((a, b) => (new Date(b.createdAt).getTime() > new Date(a.createdAt).getTime()) ? 1 : -1);
+        filterAndRenderLoans(); 
         
+        // Update status display
+        userIdDisplay.textContent = 'Local Storage Mode';
+        cloudInfo.textContent = 'Data is now saved to your browser (Local Storage).';
+        submitButton.disabled = false;
+        
+        console.log(`Application started in Local Storage Mode. Total records loaded: ${currentLoans.length}`);
+    }
+
+    /**
+     * Adds a new loan record to Local Storage.
+     */
+    function addLoan(loan) {
         submitButton.disabled = true;
         submitButton.textContent = 'Adding...';
         
         try {
             const calculatedValue = loan.paidValue * 0.985; 
             const newLoanData = {
+                id: crypto.randomUUID(), // Generate a unique ID
                 loanNumber: loan.loanNumber,
                 phoneNumber: loan.phoneNumber,
                 amount: loan.amount, 
                 paidValue: loan.paidValue,
                 calculatedValue: parseFloat(calculatedValue.toFixed(2)), 
-                createdAt: new Date(), // Firestore Timestamp
+                createdAt: new Date().toISOString(), // Use ISO String for dates
                 isMarked: false, 
-                addedBy: userId
+                addedBy: 'LocalUser'
             };
+            
+            // Add new loan to the start of the array
+            currentLoans.unshift(newLoanData);
+            saveLoansToLocal();
 
-            await addDoc(collection(db, LOAN_COLLECTION_PATH), newLoanData);
-
-            showMessage(`Loan number ${loan.loanNumber} successfully added to the Cloud.`, false);
+            showMessage(`Loan number ${loan.loanNumber} successfully added to Local Storage.`, false);
             loanForm.reset();
             updateCalculatedPreview();
             updateAmountPreview(); 
+            filterAndRenderLoans(); // Rerender table
         } catch (error) {
-            console.error("Error adding document:", error);
+            console.error("Error adding record:", error);
             showMessage(`Error adding record: ${error.message}`, true);
         } finally {
             submitButton.disabled = false;
@@ -579,43 +502,35 @@
     }
     
     /**
-     * Changes the status from Unpaid (false) to Paid (true) permanently in Firestore.
+     * Changes the status from Unpaid (false) to Paid (true) in Local Storage.
      */
-    async function togglePaidStatus(id) {
-        if (!isAuthReady || !db) return;
-
-        const loan = currentLoans.find(l => l.id === id);
-        if (!loan || loan.isMarked) return;
-
-        try {
-            const loanRef = doc(db, LOAN_COLLECTION_PATH, id);
-            await updateDoc(loanRef, {
-                isMarked: true,
-                paidAt: new Date() // Record the time of payment confirmation
-            });
+    function togglePaidStatus(id) {
+        const loanIndex = currentLoans.findIndex(l => l.id === id);
+        
+        if (loanIndex !== -1 && !currentLoans[loanIndex].isMarked) {
+            currentLoans[loanIndex].isMarked = true;
+            currentLoans[loanIndex].paidAt = new Date().toISOString(); 
+            saveLoansToLocal();
+            filterAndRenderLoans();
             
-            // Sinhala: Loan number <loanNumber>: සාර්ථකව ගෙවා ඇත.
-            showMessage(`Loan number ${loan.loanNumber}: Payment successfully marked as paid in Cloud.`, false);
+            showMessage(`Loan number ${currentLoans[loanIndex].loanNumber}: Payment successfully marked as paid.`, false);
             promptWhatsAppSend(id);
-
-        } catch (error) {
-            console.error("Error updating document:", error);
-            showMessage(`Error updating status: ${error.message}`, true);
         }
     }
 
     /**
-     * Performs the actual deletion of the loan record from Firestore.
+     * Performs the actual deletion of the loan record from Local Storage.
      */
-    async function performActualDelete(id, loanNumber) {
-        if (!isAuthReady || !db) return;
+    function performActualDelete(id, loanNumber) {
+        const initialLength = currentLoans.length;
+        currentLoans = currentLoans.filter(loan => loan.id !== id);
         
-        try {
-            await deleteDoc(doc(db, LOAN_COLLECTION_PATH, id));
-            showMessage(`Loan number ${loanNumber} successfully deleted from Cloud.`, false);
-        } catch (error) {
-            console.error("Error deleting document:", error);
-            showMessage(`Error deleting record: ${error.message}`, true);
+        if (currentLoans.length < initialLength) {
+            saveLoansToLocal();
+            filterAndRenderLoans();
+            showMessage(`Loan number ${loanNumber} successfully deleted.`, false);
+        } else {
+            showMessage(`Error: Loan number ${loanNumber} not found for deletion.`, true);
         }
     }
     
@@ -631,6 +546,9 @@
     }
     
     // Confirmation Modal show/hide logic
+    let loanToDeleteId = null;
+    let loanToDeleteNumber = null;
+
     function showModal() {
         confirmationModal.classList.remove('hidden');
         confirmationModal.classList.add('flex');
@@ -659,9 +577,7 @@
         const paidValue = formatCurrency(loan.paidValue);
         const calculatedValue = formatCurrency(loan.calculatedValue);
         
-        // Firestore Timestamp object needs to be converted
-        const loanDate = loan.createdAt.toDate ? loan.createdAt.toDate() : new Date(loan.createdAt);
-        const dateString = getDateStringFromISO(loanDate.toISOString());
+        const { date: dateString } = formatDateTime(loan.createdAt);
         const paymentStatus = loan.isMarked ? 'PAID' : 'UNPAID (Pending Confirmation)';
 
 
@@ -718,9 +634,7 @@ Thank you for your business!
             return;
         }
         
-        // Handle Firestore Timestamp conversion
-        const loanDate = loan.createdAt.toDate ? loan.createdAt.toDate().toISOString() : loan.createdAt;
-        const { date, time } = formatDateTime(loanDate);
+        const { date, time } = formatDateTime(loan.createdAt);
         
         const paymentStatusText = loan.isMarked ? 'PAID' : 'UNPAID';
         const statusColor = loan.isMarked ? 'text-green-700' : 'text-red-700';
@@ -810,9 +724,7 @@ Thank you for your business!
         // 1. Filter by Date (if selected)
         if (selectedDate) {
             loansToRender = loansToRender.filter(loan => {
-                // Handle Firestore Timestamp conversion for date comparison
-                const loanDate = loan.createdAt.toDate ? loan.createdAt.toDate().toISOString() : loan.createdAt;
-                return getDateStringFromISO(loanDate) === selectedDate;
+                return getDateStringFromISO(loan.createdAt) === selectedDate;
             });
         } 
         
@@ -821,18 +733,6 @@ Thank you for your business!
             loansToRender = loansToRender.filter(loan => {
                 return loan.loanNumber.toLowerCase().includes(searchInput);
             });
-            
-            if (loansToRender.length > 0) {
-                if (selectedDate) {
-                    showMessage(`Found ${loansToRender.length} records containing loan number '${searchInput}' for date ${selectedDate}.`, false);
-                } else {
-                    showMessage(`Found ${loansToRender.length} records containing loan number '${searchInput}'.`, false);
-                }
-            } else if (searchInput) {
-                 showMessage(`No records found containing loan number '${searchInput}'.`, true);
-            }
-        } else if (selectedDate && !searchInput && loansToRender.length === 0) {
-             showMessage(`No records found for date ${selectedDate}.`, true);
         }
 
         // --- Calculate Total for visible records ---
@@ -850,18 +750,14 @@ Thank you for your business!
     function renderLoans(loans) {
         if (loans.length === 0) {
             const filterActive = filterDateInput.value || searchLoanNumberInput.value;
-            const message = filterActive 
-                ? 'No records match the current filters.'
-                : isAuthReady ? 'No loan records found in the Cloud Database. Add a new loan above.' : 'Connecting to Cloud Database...';
+            let message = filterActive ? 'No records match the current filters.' : 'No loan records found in Local Storage. Add a new loan above.';
                 
             loanTableBody.innerHTML = `<tr><td colspan="8" class="text-center py-4 text-gray-500">${message}</td></tr>`;
             return;
         }
 
         loanTableBody.innerHTML = loans.map((loan, index) => {
-            // Handle Firestore Timestamp conversion
-            const loanDate = loan.createdAt.toDate ? loan.createdAt.toDate().toISOString() : loan.createdAt;
-            const { date, time } = formatDateTime(loanDate); 
+            const { date, time } = formatDateTime(loan.createdAt); 
             
             const isEven = index % 2 === 0;
             const isPaid = loan.isMarked; 
@@ -912,16 +808,18 @@ Thank you for your business!
 
     // --- Download as CSV Function ---
     function downloadLoansAsCSV() {
+        if (currentLoans.length === 0) {
+            showMessage("No data to download.", true);
+            return;
+        }
+        
         const selectedDate = filterDateInput.value; 
         const searchInput = searchLoanNumberInput.value.toLowerCase().trim(); 
         
         let loansToCopy = currentLoans;
 
         if (selectedDate) {
-            loansToCopy = loansToCopy.filter(loan => {
-                 const loanDate = loan.createdAt.toDate ? loan.createdAt.toDate().toISOString() : loan.createdAt;
-                 return getDateStringFromISO(loanDate) === selectedDate;
-            });
+            loansToCopy = loansToCopy.filter(loan => getDateStringFromISO(loan.createdAt) === selectedDate);
         } 
         
         if (searchInput) {
@@ -948,8 +846,7 @@ Thank you for your business!
         ];
         
         const csvRows = loansToCopy.map(loan => {
-            const loanDate = loan.createdAt.toDate ? loan.createdAt.toDate().toISOString() : loan.createdAt;
-            const { date, time } = formatDateTime(loanDate);
+            const { date, time } = formatDateTime(loan.createdAt);
             const paidStatus = loan.isMarked ? 'PAID' : 'UNPAID';
 
             return [
@@ -974,7 +871,7 @@ Thank you for your business!
         const a = document.createElement('a');
         
         a.href = url;
-        a.download = `Loan_Records_${getDateStringFromISO(new Date().toISOString())}.csv`;
+        a.download = `Loan_Records_Local_${getDateStringFromISO(new Date().toISOString())}.csv`;
         
         document.body.appendChild(a);
         a.click();
@@ -1019,11 +916,6 @@ Thank you for your business!
         const amount = parseFloat(document.getElementById('amount').value);
         const paidValue = parseFloat(document.getElementById('paidValue').value);
 
-        if (!isAuthReady) {
-            showMessage("Please wait for Cloud Database connection before adding records.", true);
-            return;
-        }
-
         if (isNaN(amount) || isNaN(paidValue) || amount <= 0 || paidValue < 0) {
             showMessage("Please enter valid numeric values for Amount and Paid Value.", true);
             return;
@@ -1047,7 +939,7 @@ Thank you for your business!
 
 
     window.onload = () => {
-        initializeFirebase();
+        initializeApp();
         updateCalculatedPreview(); 
         updateAmountPreview(); 
     };
