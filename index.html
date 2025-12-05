@@ -143,7 +143,8 @@
     <!-- User ID and Status - UPDATED FOR FIREBASE -->
     <div id="status" class="mt-4 p-3 bg-indigo-50 border border-indigo-200 rounded-lg shadow-sm text-sm text-indigo-700">
         <p class="font-semibold">User ID: <span id="userIdDisplay" class="font-mono text-xs bg-indigo-100 px-2 py-1 rounded">Authenticating...</span></p>
-        <p class="mt-1 text-xs text-green-700 font-medium">Data is now saved to the Cloud Database (Firebase Firestore) in your project: <span class="font-bold">loan-tracker-7cbd4</span></p>
+        <!-- Sinhala: දත්ත දැන් Cloud Database (Firebase Firestore) වෙත සුරැකේ. -->
+        <p class="mt-1 text-xs text-green-700 font-medium">Data is now saved to the Cloud Database (Firebase Firestore).</p>
     </div>
 
     <!-- Data Entry Form -->
@@ -266,8 +267,6 @@
         </p>
     </footer>
 
-</div>
-
 <!-- Custom Confirmation Modal (Replaces confirm()) -->
 <div id="confirmationModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black bg-opacity-50 p-4" aria-modal="true" role="dialog">
     <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden transform transition-all">
@@ -306,29 +305,21 @@
     </div>
 </div>
 
+</div>
+
 <!-- JavaScript Logic (using Firebase Firestore) -->
 <script type="module">
     // --- Firebase Imports ---
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-    import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
     import { getFirestore, doc, addDoc, updateDoc, deleteDoc, onSnapshot, collection, query, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-    // --- Firebase Setup (YOUR HARDCODED CONFIGURATION) ---
-    // **NOTE:** Since this is hosted externally, we use the provided configuration 
-    // and sign in anonymously, removing the reliance on Canvas globals.
+    // --- Firebase Setup (Using Environment Variables) ---
+    // These variables are provided by the platform for secure and hassle-free connection.
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+    const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+    const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
-    const FIREBASE_CONFIG = {
-      apiKey: "AIzaSyCSvHPip4fUKQzfdCXIfDcRVlALJPMSp1s",
-      authDomain: "loan-tracker-7cbd4.firebaseapp.com",
-      projectId: "loan-tracker-7cbd4",
-      storageBucket: "loan-tracker-7cbd4.firebasestorage.app",
-      messagingSenderId: "708047816014",
-      appId: "1:708047816014:web:ccd674e3f28c49aab88a1f",
-      measurementId: "G-3930CRMWDV"
-    };
-
-    const APP_ID = FIREBASE_CONFIG.projectId; // Use Project ID as the identifier for the Firestore path
-    
     let db;
     let auth;
     let userId = null;
@@ -336,8 +327,8 @@
     let currentLoans = [];
     
     // Public path for shop/collaborative data
-    // Data will be stored in: artifacts/loan-tracker-7cbd4/public/data/loans
-    const LOAN_COLLECTION_PATH = `artifacts/${APP_ID}/public/data/loans`;
+    // Data will be stored in: artifacts/{appId}/public/data/loans
+    const LOAN_COLLECTION_PATH = `artifacts/${appId}/public/data/loans`;
     
     // --- State for Deletion Fix ---
     let loanToDeleteId = null;
@@ -451,13 +442,20 @@
     async function initializeFirebase() {
         setLogLevel('debug'); // Enable logging for debugging
         try {
-            // Use the hardcoded configuration
-            const app = initializeApp(FIREBASE_CONFIG); 
+            if (!firebaseConfig || Object.keys(firebaseConfig).length === 0) {
+                throw new Error("Firebase configuration not found.");
+            }
+            
+            const app = initializeApp(firebaseConfig); 
             db = getFirestore(app);
             auth = getAuth(app);
             
-            // 1. Sign In Anonymously (Safest option for external hosting)
-            await signInAnonymously(auth); 
+            // 1. Authenticate using the provided custom token or fall back to anonymous sign-in
+            if (initialAuthToken) {
+                await signInWithCustomToken(auth, initialAuthToken);
+            } else {
+                await signInAnonymously(auth); 
+            }
             
             // 2. Set Auth Listener
             onAuthStateChanged(auth, (user) => {
@@ -474,13 +472,14 @@
                     isAuthReady = false;
                     userIdDisplay.textContent = 'Sign In Failed / Anonymous';
                     submitButton.disabled = true;
-                    console.error("Authentication failed. Cannot access Firestore.");
+                    console.error("Authentication failed. Cannot access Firestore. Check Security Rules.");
                 }
             });
 
         } catch (error) {
             console.error("Firebase initialization failed:", error);
-            showMessage("Error connecting to Cloud Database. Check console for details.", true);
+            // Sinhala: Cloud Database හා සම්බන්ධ වීමේ දෝෂයකි. (පද්ධති සැකසුම් පරීක්ෂා කරන්න.)
+            showMessage(`Error connecting to Cloud Database: ${error.message}. Check console for details.`, true);
             userIdDisplay.textContent = 'Initialization Error';
         }
     }
