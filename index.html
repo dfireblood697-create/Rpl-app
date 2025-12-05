@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- UPDATED TITLE -->
-    <title>Siriwardana Mobile - RPL Loan Records Tracker (Local Storage)</title>
+    <!-- UPDATED TITLE - RPL changed to LPR -->
+    <title>Siriwardana Mobile - LPR Loan Records Tracker (Local Storage)</title>
     
     <!-- ********** ADDITIONS FOR DESKTOP/HOMESCREEN ICON & FAVICON ********** -->
     <link rel="icon" type="image/png" href="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRn0Hz-y61XQ-3RgTeYFbMDN4ZaVuJozrSYJA&s">
@@ -28,7 +28,7 @@
     </script>
     <style>
         body {
-            font-family: 'Inter', sans-serif;
+            font-family: 'Inter', 'sans-serif';
             background-color: #f7f9fc;
         }
         .container {
@@ -46,10 +46,11 @@
             background: #f7f9fc;
         }
         .paid-row {
-            background-color: #d1fae5 !important;
+            background-color: #d1fae5 !important; /* Light Green for Paid */
             transition: background-color 0.3s ease;
         }
         
+        /* Animation for Logo (Pulse) - KEPT */
         @keyframes pulse-logo {
             0%, 100% {
                 opacity: 1;
@@ -64,6 +65,20 @@
         }
         .animate-pulse-logo {
             animation: pulse-logo 1.5s infinite ease-in-out;
+        }
+        
+        /* NEW: Animation for Siriwardana Mobile Header (RGB Color Cycle) - KEPT */
+        @keyframes color-cycle {
+            0% { color: #ef4444; /* Red */ }
+            25% { color: #3b82f6; /* Blue */ }
+            50% { color: #10b981; /* Emerald Green */ }
+            75% { color: #a855f7; /* Violet/Purple */ }
+            100% { color: #ef4444; /* Back to Red */ }
+        }
+        .animate-color-cycle {
+            /* 5 seconds for a full cycle, smooth linear transition */
+            animation: color-cycle 5s infinite linear; 
+            transition: color 0.5s ease-in-out; /* Optional smooth transition between keyframes */
         }
         
         /* === FIXED: Print Specific Styles for XP-80 Thermal Printer (300px) === */
@@ -116,6 +131,11 @@
                 width: 0 !important;
                 height: 0 !important;
             }
+            /* Remove animation for printing */
+            .animate-color-cycle {
+                animation: none !important;
+                color: #000 !important; /* Force black text on print */
+            }
         }
         
         #receiptModal > div {
@@ -131,11 +151,13 @@
             <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRn0Hz-y61XQ-3RgTeYFbMDN4ZaVuJozrSYJA&s" 
                  alt="App Logo" 
                  class="h-16 w-16 object-cover rounded-xl shadow-md animate-pulse-logo"
-                 onerror="this.onerror=null; this.src='https://placehold.co/64x64/cccccc/000000?text=RPL';">
-            <!-- RETAINING "SIRIWARDANA MOBILE" -->
-            <h1 class="text-3xl font-bold text-gray-800">Siriwardana Mobile</h1>
-            <!-- UPDATED SUBTITLE TO "RPL" -->
-            <p class="text-lg font-medium text-indigo-600">RPL</p>
+                 onerror="this.onerror=null; this.src='https://placehold.co/64x64/cccccc/000000?text=LPR';">
+            
+            <!-- RGB Animated Header -->
+            <h1 class="text-3xl font-bold text-gray-800 animate-color-cycle">Siriwardana Mobile</h1>
+            
+            <!-- UPDATED SUBTITLE TO "LPR" AND FONT SIZE INCREASED (text-2xl, font-bold) -->
+            <p class="text-2xl font-bold text-indigo-600">LPR</p>
         </div>
     </header>
 
@@ -151,15 +173,18 @@
     <section class="mt-6 p-5 bg-white rounded-xl shadow-lg">
         <h2 class="text-xl font-semibold text-gray-700 mb-4">Add New Loan</h2>
         <form id="loanForm" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <!-- Placeholder Sinhala text is kept -->
-            <input type="text" id="loanNumber" placeholder="Loan Number (ණය අංකය)" required
+            <!-- Loan Number Input - UPDATED FOR 13 DIGITS (maxlength and pattern) -->
+            <input type="text" id="loanNumber" placeholder="Loan Number (ණය අංකය) - 13 Digits Required" required 
+                   maxlength="13" pattern="[0-9]{13}"
+                   title="Loan Number must be exactly 13 digits."
                    class="p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                   
             <input type="text" id="phoneNumber" placeholder="Phone Number (දුරකථන අංකය)" required
                    class="p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
             
-            <!-- Amount (මුළු මුදල) with +1.5% Preview -->
+            <!-- Amount (මුළු මුදල) with +1.5% Preview - KEPT AS IS FOR CALCULATION/DISPLAY ONLY -->
             <div class="relative">
-                <input type="number" id="amount" placeholder="Amount (මුළු ණය මුදල)" required min="1"
+                <input type="number" id="amount" placeholder="Principal Loan Amount (ගණනයට පමණි)" required min="1"
                        class="w-full p-3 pr-32 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
                 <span id="amountPreview" 
                       class="absolute inset-y-0 right-0 flex items-center pr-1 text-xs font-bold text-blue-700 bg-blue-100 rounded-r-lg px-2 shadow-inner whitespace-nowrap">
@@ -243,7 +268,8 @@
                         <th rowspan="2" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone Number</th>
                         <th colspan="2" class="px-4 py-3 text-center text-xs font-bold text-indigo-700 uppercase tracking-wider border-b border-indigo-200">Amount</th>
                         <th rowspan="2" class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
-                        <th rowspan="2" class="px-4 py-3 text-center text-xs font-bold text-gray-600 uppercase tracking-wider border-l border-indigo-200">Paid</th> 
+                        <!-- Payment Method / Status -->
+                        <th rowspan="2" class="px-4 py-3 text-center text-xs font-bold text-gray-600 uppercase tracking-wider border-l border-indigo-200">Payment Status</th> 
                     </tr>
                     <tr>
                         <th class="px-4 py-3 text-center text-xs font-bold text-gray-600 uppercase tracking-wider bg-indigo-100">Date</th>
@@ -474,16 +500,18 @@
         submitButton.textContent = 'Adding...';
         
         try {
+            // Check for 13 digits is done inside the form submission listener
             const calculatedValue = loan.paidValue * 0.985; 
             const newLoanData = {
                 id: crypto.randomUUID(), // Generate a unique ID
                 loanNumber: loan.loanNumber,
                 phoneNumber: loan.phoneNumber,
-                amount: loan.amount, 
+                amount: loan.amount, // KEPT HERE FOR THE PREVIEW CALCULATION TO WORK ON LOAD
                 paidValue: loan.paidValue,
                 calculatedValue: parseFloat(calculatedValue.toFixed(2)), 
                 createdAt: new Date().toISOString(), // Use ISO String for dates
                 isMarked: false, 
+                paymentMethod: '', // Initialize payment method as empty
                 addedBy: 'LocalUser'
             };
             
@@ -506,22 +534,35 @@
     }
     
     /**
-     * Changes the status from Unpaid (false) to Paid (true) in Local Storage.
+     * Marks a loan as paid with the specified method (Cash, Card, or Unspecified).
+     * IMPORTANT: Once marked, payment status cannot be changed or reset (as per user request).
      */
-    function togglePaidStatus(id) {
+    function markAsPaid(id, method) {
         const loanIndex = currentLoans.findIndex(l => l.id === id);
         
         if (loanIndex !== -1 && !currentLoans[loanIndex].isMarked) {
+            // Ensure method is one of the allowed types. Use 'Unspecified' for 'Paid'.
+            const paymentMethod = (method === 'Cash' || method === 'Card') ? method : 'Unspecified';
+
             currentLoans[loanIndex].isMarked = true;
+            currentLoans[loanIndex].paymentMethod = paymentMethod; 
             currentLoans[loanIndex].paidAt = new Date().toISOString(); 
             saveLoansToLocal();
             filterAndRenderLoans();
             
-            showMessage(`Loan number ${currentLoans[loanIndex].loanNumber}: Payment successfully marked as paid.`, false);
+            const displayMethod = paymentMethod === 'Unspecified' ? 'Paid' : paymentMethod;
+            showMessage(`Loan number ${currentLoans[loanIndex].loanNumber}: Payment successfully marked as ${displayMethod}. Status is now FINAL.`, false);
             promptWhatsAppSend(id);
+        } else if (loanIndex !== -1 && currentLoans[loanIndex].isMarked) {
+             const existingMethod = currentLoans[loanIndex].paymentMethod === 'Unspecified' ? 'Paid' : currentLoans[loanIndex].paymentMethod;
+             showMessage(`Loan number ${currentLoans[loanIndex].loanNumber} is already marked as ${existingMethod}. Cannot change status.`, true);
         }
     }
 
+    /**
+     * Deletion functions remain, only the Mark/Unmark is modified for immutability.
+     */
+    
     /**
      * Performs the actual deletion of the loan record from Local Storage.
      */
@@ -533,6 +574,7 @@
             saveLoansToLocal();
             filterAndRenderLoans();
             showMessage(`Loan number ${loanNumber} successfully deleted.`, false);
+            hideWhatsAppPrompt(); 
         } else {
             showMessage(`Error: Loan number ${loanNumber} not found for deletion.`, true);
         }
@@ -581,13 +623,16 @@
         const paidValue = formatCurrency(loan.paidValue);
         const calculatedValue = formatCurrency(loan.calculatedValue);
         
+        // Use a user-friendly name for 'Unspecified'
+        const method = loan.paymentMethod === 'Unspecified' ? 'PAID (Method Not Specified)' : loan.paymentMethod.toUpperCase(); 
+        
         const { date: dateString } = formatDateTime(loan.createdAt);
-        const paymentStatus = loan.isMarked ? 'PAID' : 'UNPAID (Pending Confirmation)';
+        const paymentStatus = loan.isMarked ? 'PAID (Final)' : 'UNPAID (Pending Confirmation)';
 
 
         const message = 
             // RETAINED "Siriwardana Mobile"
-            `*Siriwardana Mobile - RPL Official Receipt*
+            `*Siriwardana Mobile - LPR Official Receipt*
 ------------------------------
 *TRANSACTION DETAILS*
 
@@ -595,6 +640,7 @@ Loan Number: ${loan.loanNumber}
 Phone Number: ${loan.phoneNumber}
 Paid Value: ${paidValue}
 Net Calculated Value (-1.5%): ${calculatedValue}
+Payment Method: ${method}
 Date Recorded: ${dateString}
 Status: ${paymentStatus}
 
@@ -606,7 +652,7 @@ Thank you for your business!
 
     function promptWhatsAppSend(loanId) {
         const loan = currentLoans.find(l => l.id === loanId);
-        if (!loan) return;
+        if (!loan || !loan.isMarked) return;
         
         let phone = loan.phoneNumber.replace(/\D/g, ''); 
         if (phone.length === 10 && phone.startsWith('0')) {
@@ -641,8 +687,13 @@ Thank you for your business!
         
         const { date, time } = formatDateTime(loan.createdAt);
         
-        const paymentStatusText = loan.isMarked ? 'PAID' : 'UNPAID';
+        const paymentStatusText = loan.isMarked ? 'PAID (FINAL)' : 'UNPAID';
         const statusColor = loan.isMarked ? 'text-green-700' : 'text-red-700';
+        
+        // Use a user-friendly name for 'Unspecified'
+        const paymentMethod = loan.isMarked ? 
+            (loan.paymentMethod === 'Unspecified' ? 'PAID (Method Unspecified)' : loan.paymentMethod.toUpperCase()) : 
+            'N/A';
 
 
         const receiptHtml = `
@@ -651,7 +702,7 @@ Thank you for your business!
                     <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRn0Hz-y61XQ-3RgTeYFbMDN4ZaVuJozrSYJA&s" 
                          alt="App Logo" 
                          class="mx-auto h-16 w-16 object-cover rounded-xl mb-2"
-                         onerror="this.onerror=null; this.src='https://placehold.co/64x64/cccccc/000000?text=RPL';">
+                         onerror="this.onerror=null; this.src='https://placehold.co/64x64/cccccc/000000?text=LPR';">
 
                     <!-- RETAINED "Siriwardana Mobile" -->
                     <h1 class="text-xl font-extrabold text-gray-900 uppercase">Siriwardana Mobile</h1>
@@ -663,8 +714,8 @@ Thank you for your business!
                 
                 <div class="text-center mb-4 pb-2">
                     <h2 class="text-lg font-bold text-gray-900">TRANSACTION RECEIPT</h2>
-                    <!-- UPDATED SUBTITLE TO "RPL" -->
-                    <p class="text-xs text-gray-700">RPL</p>
+                    <!-- UPDATED SUBTITLE TO "LPR" -->
+                    <p class="text-base font-bold text-gray-700">LPR</p>
                 </div>
                 
                 <div class="space-y-1">
@@ -683,12 +734,12 @@ Thank you for your business!
                     
                     <h2 class="text-base font-bold pt-2 border-t border-dashed border-gray-400 text-center">PAYMENT SUMMARY</h2>
                     
-                    <div class="flex justify-between text-base pt-2">
-                        <span class="font-medium">Principal Loan Amount:</span>
-                        <span class="font-bold">${formatCurrency(loan.amount)}</span>
+                    <div class="flex justify-between pt-2">
+                        <span class="font-medium">Payment Method:</span>
+                        <span class="font-bold text-gray-800">${paymentMethod}</span>
                     </div>
                     
-                    <div class="flex justify-between text-lg pt-1">
+                    <div class="flex justify-between text-lg pt-2">
                         <span class="font-bold">Customer PAID Value:</span>
                         <span class="font-extrabold text-indigo-700">${formatCurrency(loan.paidValue)}</span>
                     </div>
@@ -777,8 +828,50 @@ Thank you for your business!
             const paidValueFormatted = formatCurrency(loan.paidValue);
             const calculatedValueFormatted = formatCurrency(loan.calculatedValue);
 
-            const checkboxDisabled = isPaid ? 'disabled' : '';
-            const checkboxCursor = isPaid ? 'cursor-not-allowed opacity-60' : 'cursor-pointer';
+            let statusContent = '';
+
+            if (isPaid) {
+                // If paid, show the method and DISSABLE the reset button (Final Status)
+                let method = loan.paymentMethod.toUpperCase();
+                let badgeColor = 'bg-gray-500'; // Default for Unspecified/Paid
+
+                if (method === 'CASH') {
+                    badgeColor = 'bg-green-600';
+                } else if (method === 'CARD') {
+                    badgeColor = 'bg-blue-600';
+                } else {
+                    method = 'PAID (Unspecified)'; // Display 'Paid' for the generic option
+                }
+
+                statusContent = `
+                    <div class="flex flex-col items-center justify-center space-y-1">
+                        <span class="px-3 py-1 text-xs font-bold text-white uppercase rounded-full ${badgeColor} shadow-md">
+                            ${method}
+                        </span>
+                        <span class="text-xs text-red-500 font-bold mt-1">
+                            FINAL STATUS
+                        </span>
+                    </div>
+                `;
+            } else {
+                // If unpaid, show Paid, Cash and Card buttons
+                statusContent = `
+                    <div class="flex flex-col space-y-2">
+                        <button onclick="window.markAsPaid('${loan.id}', 'Paid')" 
+                                class="w-full text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 p-2 rounded-lg transition shadow-sm">
+                            PAID (ගෙව්වා)
+                        </button>
+                        <button onclick="window.markAsPaid('${loan.id}', 'Cash')" 
+                                class="w-full text-xs font-bold text-white bg-green-600 hover:bg-green-700 p-2 rounded-lg transition shadow-sm">
+                            CASH (මුදල්)
+                        </button>
+                        <button onclick="window.markAsPaid('${loan.id}', 'Card')" 
+                                class="w-full text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 p-2 rounded-lg transition shadow-sm">
+                            CARD (කාඩ්)
+                        </button>
+                    </div>
+                `;
+            }
             
             // Receipt button is always active/enabled
             const receiptButtonClass = 'text-blue-600 hover:text-blue-800 hover:bg-blue-100';
@@ -805,11 +898,7 @@ Thank you for your business!
                         </button>
                     </td>
                     <td class="px-4 py-3 whitespace-nowrap text-center text-sm border-l border-gray-200">
-                        <input type="checkbox" 
-                               ${isPaid ? 'checked' : ''} 
-                               ${checkboxDisabled}
-                               onchange="window.togglePaidStatus('${loan.id}')"
-                               class="h-5 w-5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 ${checkboxCursor}">
+                        ${statusContent}
                     </td>
                 </tr>
             `;
@@ -844,30 +933,33 @@ Thank you for your business!
         const SEPARATOR = ','; 
         const BOM = "\ufeff"; 
 
+        // UPDATED: Added "Payment Method"
         const headers = [
             "Reported Date",                   
             "Reported Time",
             "Loan Number",                         
             "Phone Number",                     
-            "Principal Loan Amount",                     
             "Customer Paid Value",           
             "Calculated Net Value (-1.5%)",
-            "Paid Status" 
+            "Paid Status", 
+            "Payment Method" 
         ];
         
         const csvRows = loansToCopy.map(loan => {
             const { date, time } = formatDateTime(loan.createdAt);
             const paidStatus = loan.isMarked ? 'PAID' : 'UNPAID';
+            // Use 'Unspecified' or method name
+            const paymentMethod = loan.isMarked ? (loan.paymentMethod === 'Unspecified' ? 'PAID (Unspecified Method)' : loan.paymentMethod) : ''; 
 
             return [
                 `"${date}"`,
                 `"${time}"`, 
                 `"${loan.loanNumber}"`, 
                 `"${loan.phoneNumber}"`, 
-                loan.amount,             
                 loan.paidValue,          
                 loan.calculatedValue,
-                `"${paidStatus}"`
+                `"${paidStatus}"`,
+                `"${paymentMethod}"` 
             ].join(SEPARATOR); 
         });
 
@@ -881,7 +973,8 @@ Thank you for your business!
         const a = document.createElement('a');
         
         a.href = url;
-        a.download = `Siriwardana_Mobile_RPL_Records_Local_${getDateStringFromISO(new Date().toISOString())}.csv`;
+        // UPDATED: "RPL" to "LPR" in filename
+        a.download = `Siriwardana_Mobile_LPR_Records_Local_${getDateStringFromISO(new Date().toISOString())}.csv`;
         
         document.body.appendChild(a);
         a.click();
@@ -921,10 +1014,19 @@ Thank you for your business!
     loanForm.addEventListener('submit', function(e) {
         e.preventDefault();
 
-        const loanNumber = document.getElementById('loanNumber').value.trim();
+        const loanNumberInput = document.getElementById('loanNumber');
+        const loanNumber = loanNumberInput.value.trim();
         const phoneNumber = document.getElementById('phoneNumber').value.trim();
         const amount = parseFloat(document.getElementById('amount').value);
         const paidValue = parseFloat(document.getElementById('paidValue').value);
+        
+        // Check for exactly 13 digits
+        if (loanNumber.length !== 13 || !/^\d+$/.test(loanNumber)) {
+            showMessage("Loan Number must be exactly 13 digits (only numbers allowed).", true);
+            loanNumberInput.focus();
+            return;
+        }
+
 
         if (isNaN(amount) || isNaN(paidValue) || amount <= 0 || paidValue < 0) {
             showMessage("Please enter valid numeric values for Amount and Paid Value.", true);
@@ -939,7 +1041,7 @@ Thank you for your business!
     
     // Expose functions to the global scope
     window.deleteLoan = deleteLoan;
-    window.togglePaidStatus = togglePaidStatus;
+    window.markAsPaid = markAsPaid; 
     window.showReceipt = showReceipt;
     window.showMessage = showMessage;
     
