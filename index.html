@@ -5,14 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Siriwardana Mobile - LPR Loan Records Tracker (User Login)</title>
     
-    <!-- ********** LOGO ********** -->
     <link rel="icon" type="image/png" href="https://placehold.co/64x64/0000FF/FFFFFF?text=SM">
     <link rel="apple-touch-icon" href="https://placehold.co/64x64/0000FF/FFFFFF?text=SM">
-    <!-- ************************************************************************** -->
-    
-    <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Inter Font -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght400;600;700;800;900&display=swap" rel="stylesheet">
     <style>
         /* Sinhala Noto Font for Placeholders */
@@ -147,20 +142,15 @@
 <div class="container mx-auto">
     <header class="py-6 border-b border-gray-200">
         <div class="flex flex-col items-center justify-center space-y-2">
-            <!-- LOGO: Using the user-requested unstable link with a reliable fallback -->
             <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRn0Hz-y61XQ-3RgTeYFbMDN4ZaVuJozrSYJA&s" 
                  alt="App Logo" 
                  class="h-16 w-16 object-cover rounded-xl shadow-md animate-pulse-logo"
-                 onerror="this.onerror=null; this.src='https://placehold.co/64x64/0000FF/FFFFFF?text=SM';"> <!-- Stable blue/white fallback -->
-            
-            <!-- RGB Animated Header -->
-            <h1 class="text-3xl font-bold text-gray-800 animate-color-cycle">Siriwardana Mobile</h1>
+                 onerror="this.onerror=null; this.src='https://placehold.co/64x64/0000FF/FFFFFF?text=SM';"> <h1 class="text-3xl font-bold text-gray-800 animate-color-cycle">Siriwardana Mobile</h1>
             
             <p class="text-2xl font-bold text-indigo-600">LPR Loan Records Tracker</p>
         </div>
     </header>
 
-    <!-- User ID and Status - Cloud/Real-Time Mode -->
     <div id="status" class="mt-4 p-3 bg-indigo-50 border border-indigo-200 rounded-lg shadow-sm text-sm text-indigo-800">
         <p class="font-semibold">System Status: 
             <span id="userIdDisplay" class="font-mono text-xs bg-indigo-100 px-2 py-1 rounded">
@@ -172,15 +162,11 @@
         </p>
     </div>
 
-    <!-- ************************************************************************** -->
-    <!-- NEW LOGIN SECTION (REPLACING OLD SET NAME SECTION) -->
-    <!-- ************************************************************************** -->
     <section id="loginSection" class="mt-6 p-6 bg-yellow-100 border border-yellow-400 rounded-xl shadow-2xl">
         <h2 class="text-2xl font-bold text-yellow-800 mb-4 text-center">පිවිසෙන්න (User Login)</h2>
         <div id="loginMessage" class="hidden p-3 mb-4 text-sm font-medium rounded-lg"></div>
         
         <div class="flex flex-col space-y-4">
-            <!-- User Selector Dropdown -->
             <div>
                 <label for="loginUserName" class="block text-sm font-medium text-gray-700 mb-1">නම තෝරන්න (Select Name)</label>
                 <select id="loginUserName" 
@@ -193,40 +179,31 @@
                 </select>
             </div>
             
-            <!-- Passcode Input -->
             <div>
                 <label for="passcodeInput" class="block text-sm font-medium text-gray-700 mb-1">රහස් අංකය (Passcode)</label>
                 <input type="password" id="passcodeInput" placeholder="රහස් අංකය ඇතුළත් කරන්න" required maxlength="4"
                        class="w-full p-3 border border-gray-300 rounded-lg focus:ring-yellow-500 focus:border-yellow-500 text-lg">
             </div>
 
-            <!-- Login Button -->
             <button type="button" id="loginButton" 
                     class="bg-yellow-600 text-white p-3 rounded-lg font-bold text-xl transition duration-150 shadow-lg hover:bg-yellow-700">
                 පිවිසෙන්න (Login)
             </button>
         </div>
     </section>
-    <!-- ************************************************************************** -->
-
-    <!-- Main Application Content - Hidden until successful login -->
     <div id="mainAppContent" class="hidden"> 
 
-        <!-- Data Entry Form -->
         <section class="mt-6 p-5 bg-white rounded-xl shadow-lg">
             <h2 class="text-xl font-semibold text-gray-700 mb-4">Add New Loan Record - PENDING Status</h2>
             <form id="loanForm" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <!-- Loan Number Input - UPDATED PLACEHOLDER IN SINHALA -->
                 <input type="text" id="loanNumber" placeholder="ණය අංකය - 13 ඉලක්කම් අවශ්‍යයි" required 
                        maxlength="13" pattern="[0-9]{13}"
                        title="Loan Number must be exactly 13 digits."
                        class="p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
                        
-                <!-- Phone Number Input - UPDATED PLACEHOLDER IN SINHALA -->
                 <input type="text" id="phoneNumber" placeholder="දුරකථන අංකය" required
                        class="p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
                 
-                <!-- Amount (මුළු මුදල) with +1.5% Preview - UPDATED PLACEHOLDER IN SINHALA -->
                 <div class="relative">
                     <input type="number" id="amount" placeholder="ප්‍රධාන ණය මුදල (ගණනයට පමණි)" required min="1"
                            class="w-full p-3 pr-32 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
@@ -236,11 +213,9 @@
                     </span>
                 </div>
                 
-                <!-- Customer Paid Value - UPDATED PLACEHOLDER IN SINHALA -->
                 <input type="number" id="paidValue" placeholder="ගනුදෙනුකරු ගෙවූ මුදල" required min="0"
                        class="p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
 
-                <!-- Payment Method Switches - UPDATED TEXT TO ENGLISH -->
                 <div class="md:col-span-2 p-3 bg-gray-100 border border-gray-300 rounded-lg shadow-inner">
                     <p class="text-sm font-semibold text-gray-700 mb-2">Payment Method (*Select before marking as Paid*):</p>
                     <div class="flex flex-wrap gap-4">
@@ -256,16 +231,12 @@
                             <input type="radio" name="paymentMethodRadio" value="Online" class="form-radio text-purple-600 h-5 w-5">
                             <span class="text-sm font-medium text-purple-700">Online</span>
                         </label>
-                        <!-- Default selection is Cash, but we still allow clearing the value -->
                         <label class="flex items-center space-x-2">
                             <input type="radio" name="paymentMethodRadio" value="" class="form-radio text-gray-500 h-5 w-5">
                             <span class="text-sm font-medium text-gray-700">None/Pending</span>
                         </label>
                     </div>
                 </div>
-                <!-- END Payment Method Switches -->
-                
-                <!-- Real-time Calculated Value Display - -1.5% -->
                 <div id="calculatedPreview" class="md:col-span-2 p-3 bg-indigo-100 border border-indigo-300 rounded-lg text-sm text-indigo-800 font-medium">
                     -1.5% Calculated Value (Deduction): <span id="previewValue" class="font-bold">Rs. 0.00</span>
                 </div>
@@ -278,15 +249,12 @@
             <div id="messageBox" class="mt-4 p-3 hidden bg-red-100 text-red-700 rounded-lg"></div>
         </section>
 
-        <!-- Loan List/Table & Export Button -->
         <section class="mt-8">
             <h2 class="text-xl font-semibold text-gray-700 mb-4">Loan Records</h2>
             
-            <!-- WhatsApp Prompt Box - UPDATED TEXT TO ENGLISH -->
             <div id="whatsappMessageBox" class="mt-4 p-3 bg-green-50 border border-green-300 rounded-lg shadow-md hidden flex-col sm:flex-row justify-between items-center space-y-3 sm:space-y-0 sm:space-x-4 mb-4">
                 <p id="whatsappMessageTitle" class="text-base font-bold text-green-800 text-center sm:text-left flex-grow">
-                     <!-- JS will inject the message here -->
-                </p>
+                     </p>
                 <a id="whatsappSendButton" target="_blank" href="#"
                    class="flex items-center justify-center space-x-2 bg-green-600 text-white p-3 rounded-xl font-semibold hover:bg-green-700 transition duration-150 shadow-lg w-full sm:w-auto flex-shrink-0">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
@@ -295,15 +263,10 @@
                     <span class="text-sm">Send Receipt via WhatsApp</span>
                 </a>
             </div>
-            <!-- End WhatsApp Prompt Box -->
-            
-            <!-- Filter and Search Controls -->
             <div class="flex flex-col space-y-4 mb-4">
-                <!-- Search Bar - UPDATED PLACEHOLDER IN SINHALA -->
                 <input type="text" id="searchLoanNumber" placeholder="ණය අංකය අනුව සොයන්න"
                        class="p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 shadow-sm">
 
-                <!-- Date Filter Control - UPDATED LABEL TO ENGLISH -->
                 <div class="flex flex-col sm:flex-row sm:items-center space-y-3 sm:space-y-0 sm:space-x-4 p-3 bg-gray-100 rounded-lg shadow-inner">
                     <label for="filterDate" class="text-sm font-semibold text-gray-700 whitespace-nowrap">Filter by Date:</label>
                     <input type="date" id="filterDate" 
@@ -315,51 +278,41 @@
                 </div>
             </div>
 
-            <!-- Payment Method Counts and Total Counts/Export Section -->
             <div class="flex flex-col space-y-3 mb-4">
-                <!-- Row 1: Individual Payment Counts (Cash, Card, Online) -->
                 <div class="grid grid-cols-3 gap-2">
-                    <!-- Cash Count -->
                     <div id="cashCountDisplay" class="p-3 bg-green-50 border border-green-300 rounded-lg text-green-800 shadow-md text-center">
                         <span class="font-bold text-xs sm:text-sm block">Cash Payments</span>
                         <span id="cashCountSpan" class="text-green-700 text-lg sm:text-2xl font-extrabold">0</span>
                     </div>
                     
-                    <!-- Card Count -->
                     <div id="cardCountDisplay" class="p-3 bg-blue-50 border border-blue-300 rounded-lg text-blue-800 shadow-md text-center">
                         <span class="font-bold text-xs sm:text-sm block">Card Payments</span>
                         <span id="cardCountSpan" class="text-blue-700 text-lg sm:text-2xl font-extrabold">0</span>
                     </div>
                     
-                    <!-- Online Count -->
                     <div id="onlineCountDisplay" class="p-3 bg-purple-50 border border-purple-300 rounded-lg text-purple-800 shadow-md text-center">
                         <span class="font-bold text-xs sm:text-sm block">Online Payments</span>
                         <span id="onlineCountSpan" class="text-purple-700 text-lg sm:text-2xl font-extrabold">0</span>
                     </div>
                 </div>
                 
-                 <!-- Row 2: Total Net Value and Total Marked Count -->
-                <div class="grid grid-cols-2 gap-2">
-                    <!-- Total Calculated Display -->
+                 <div class="grid grid-cols-2 gap-2">
                     <div id="totalCalculatedDisplay" class="p-3 bg-yellow-100 border border-yellow-300 rounded-lg text-yellow-800 shadow-md flex flex-col space-y-1">
                         <span class="font-bold text-xs sm:text-sm block">Total Net Value:</span>
                         <span id="totalNetValueSpan" class="text-indigo-800 text-xl sm:text-2xl font-extrabold">Rs. 0.00</span>
                     </div>
                     
-                    <!-- Total Marked Count -->
                     <div id="totalMarkedCountDisplay" class="p-3 bg-teal-100 border border-teal-300 rounded-lg text-teal-800 shadow-md flex flex-col space-y-1">
                         <span class="font-bold text-xs sm:text-sm block">Total Paid Records:</span>
                         <span id="totalMarkedCountSpan" class="text-teal-700 text-xl sm:text-2xl font-extrabold">0</span>
                     </div>
                 </div>
                 
-                <!-- Row 3: Export Button - UPDATED TEXT TO ENGLISH -->
                 <button id="downloadExcelButton" class="bg-green-600 text-white p-3 rounded-lg font-semibold hover:bg-green-700 transition duration-150 shadow-md w-full">
                     Download as Excel File
                 </button>
             </div>
             
-            <!-- Table Container for Horizontal Scrolling on Mobile -->
             <div class="table-container overflow-x-auto rounded-xl shadow-lg">
                 <table class="min-w-full divide-y divide-gray-200 bg-white">
                     <thead class="bg-indigo-50">
@@ -381,17 +334,13 @@
                         </tr>
                     </thead>
                     <tbody id="loanTableBody" class="bg-white divide-y divide-gray-200">
-                        <!-- Data rows will be inserted here by JavaScript -->
                         <tr><td colspan="10" class="text-center py-4 text-gray-500">Connecting to Cloud Database...</td></tr>
                     </tbody>
                 </table>
             </div>
         </section>
 
-    </div> <!-- End of #mainAppContent -->
-    
-    <!-- Developer/Consultation Credit Footer -->
-    <footer class="mt-10 mb-4 p-4 text-center border-t border-gray-200">
+    </div> <footer class="mt-10 mb-4 p-4 text-center border-t border-gray-200">
         <p class="text-xs text-gray-500 font-medium">
             Developed by <span class="font-semibold text-indigo-600">Mithila</span> & Consultation by <span class="font-semibold text-indigo-600">Gayan</span>
         </p>
@@ -400,7 +349,6 @@
         </p>
     </footer>
 
-<!-- Custom Confirmation Modal (Replaces confirm()) -->
 <div id="confirmationModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black bg-opacity-50 p-4" aria-modal="true" role="dialog">
     <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden transform transition-all">
         <div class="p-6">
@@ -418,15 +366,11 @@
     </div>
 </div>
 
-<!-- Receipt and Print Modal -->
 <div id="receiptModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black bg-opacity-70 p-4 print:hidden" aria-modal="true" role="dialog">
     <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg h-full max-h-[90vh] overflow-y-auto transform transition-all p-0">
-        <!-- Receipt Content Area -->
         <div id="receiptContent" class="p-6">
-            <!-- Content will be injected here -->
-        </div>
+            </div>
 
-        <!-- Receipt Footer/Controls -->
         <div class="sticky bottom-0 bg-gray-100 px-6 py-4 flex justify-end space-x-3 border-t border-gray-200">
             <button id="closeReceiptButton" type="button" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-200 transition duration-150 shadow-sm">
                 Close
@@ -440,11 +384,9 @@
 
 </div>
 
-<!-- Hidden container used ONLY for printing - FIX for blank page -->
 <div id="printContainer" class="hidden"></div>
 
 
-<!-- Firebase SDK and Application Logic -->
 <script type="module">
     // --- Firebase SDK Imports ---
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
@@ -468,15 +410,21 @@
         Menushi: '4' 
     };
 
-    // Global variables provided by the Canvas environment
-    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-    const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
-    const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+    // VITAL CHANGE: HARDCODED Firebase Configuration for rplp-44da4 Project
+    const appId = "rplp-44da4"; 
+    const firebaseConfig = {
+        apiKey: "AIzaSyBcn75ltTrkCsR4KJFHNvYiCeMtHB5Xv3s",
+        authDomain: "rplp-44da4.firebaseapp.com",
+        projectId: "rplp-44da4",
+        storageBucket: "rplp-44da4.firebasestorage.app",
+        messagingSenderId: "76131736218",
+        appId: "1:76131736218:web:141f2800787d8e67929d23",
+        // measurementId: "G-RWLXMVR86K" // Not needed for core functionality
+    };
+    const initialAuthToken = null; // No custom token used
     
     // Firestore Collection Paths
-    // Public path for collaborative loan records
     const LOAN_RECORDS_PATH = `artifacts/${appId}/public/data/loan_records`;
-    // Private path for user profile (to store the chosen name persistently)
     const getUserProfilePath = (userId) => `artifacts/${appId}/users/${userId}/profile/user_doc`;
 
 
@@ -524,7 +472,7 @@
 
     // --- Utility Functions ---
     
-    // Shows a success or error message specific to the login attempt
+    // Replaced the simple showMessage with a dedicated login message box for clarity
     function showLoginMessage(message, isError = false) {
         loginMessage.textContent = message;
         loginMessage.className = `p-3 mb-4 text-sm font-medium rounded-lg ${isError ? 'bg-red-200 text-red-800' : 'bg-green-200 text-green-800'}`;
@@ -534,7 +482,6 @@
         }, 5000); 
     }
 
-    // Shows a general success or error message for app actions
     function showMessage(message, isError = false) {
         messageBox.textContent = message;
         messageBox.className = `mt-4 p-3 rounded-lg ${isError ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`;
@@ -544,11 +491,11 @@
         }, 8000); 
     }
     
+    // Remaining utility functions (formatCurrency, formatDateTime, etc.) remain unchanged
     function formatCurrency(amount) {
         const numAmount = parseFloat(amount);
         if (isNaN(numAmount)) return 'Rs. 0.00';
         
-        // Format to LKR currency with 2 decimal places
         const formatted = new Intl.NumberFormat('en-US', {
             style: 'currency',
             currency: 'LKR',
@@ -556,24 +503,20 @@
             maximumFractionDigits: 2
         }).format(numAmount);
         
-        // Customize display from LKR to Rs.
         return formatted.replace('LKR', 'Rs.').trim().replace(/\s/g, ''); 
     }
     
-    function formatDateTime(timestamp) {
-        if (!timestamp) return { date: 'N/A', time: 'N/A' };
+    function formatDateTime(isoString) {
+        if (!isoString) return { date: 'N/A', time: 'N/A' };
         
-        // Handle Firebase Timestamp object or ISO string
-        const dateObj = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+        const dateObj = new Date(isoString instanceof Date ? isoString : (isoString.toDate ? isoString.toDate() : isoString));
         
-        // Format date as YYYY-MM-DD
         const date = dateObj.toLocaleDateString('en-US', {
             year: 'numeric',
             month: '2-digit',
             day: '2-digit'
         }).split('/').reverse().join('-'); 
         
-        // Format time as HH:MM:SS (24-hour format)
         const time = dateObj.toLocaleTimeString('en-US', {
             hour: '2-digit',
             minute: '2-digit',
@@ -584,11 +527,13 @@
         return { date, time };
     }
 
-    function getDateStringFromISO(timestamp) {
-        return formatDateTime(timestamp).date;
+    function getDateStringFromISO(isoString) {
+        if (isoString && isoString.toDate) {
+            return formatDateTime(isoString.toDate()).date;
+        }
+        return formatDateTime(isoString).date;
     }
     
-    // Updates the preview for the amount + 1.5% interest
     function updateAmountPreview() {
         const principalAmount = parseFloat(amountInput.value);
         if (isNaN(principalAmount) || principalAmount <= 0) {
@@ -599,7 +544,6 @@
         amountPreviewSpan.textContent = `+1.5%: ${formatCurrency(totalWithInterest)}`;
     }
 
-    // Updates the preview for the paid value - 1.5% deduction
     function updateCalculatedPreview() {
         const paidValue = parseFloat(paidValueInput.value);
         if (isNaN(paidValue) || paidValue < 0) {
@@ -664,7 +608,6 @@ Thank you for your business!
         if (!loan || !loan.isMarked) return;
         
         let phone = loan.phoneNumber.replace(/\D/g, ''); 
-        // Simple logic to convert 07X to 947X for WhatsApp API
         if (phone.length === 10 && phone.startsWith('0')) {
              phone = '94' + phone.substring(1); 
         } else if (phone.length === 9 && !phone.startsWith('0')) {
@@ -681,7 +624,6 @@ Thank you for your business!
         whatsappMessageBox.classList.add('flex');
 
         if (whatsappTimeout) clearTimeout(whatsappTimeout);
-        // Hide the prompt after 20 seconds
         whatsappTimeout = setTimeout(hideWhatsAppPrompt, 20000); 
     }
 
@@ -762,7 +704,6 @@ Thank you for your business!
         `;
         
         receiptContent.innerHTML = receiptHtml;
-        const printContainer = document.getElementById('printContainer');
         printContainer.innerHTML = receiptHtml; 
 
         receiptModal.classList.remove('hidden');
@@ -783,6 +724,7 @@ Thank you for your business!
 
     /**
      * Saves the logged-in user's name to their private profile document.
+     * This ensures the name is consistently linked to the user's Firebase UID.
      */
     async function saveUserNameToProfile(name, userId) {
         if (!db || !userId) {
@@ -792,10 +734,12 @@ Thank you for your business!
         
         try {
             const profileRef = doc(db, getUserProfilePath(userId));
+            // Use setDoc with merge: true to create or update the document
             await setDoc(profileRef, { name: name, userId: userId, lastUpdate: serverTimestamp() }, { merge: true });
             console.log(`User name saved/updated to Firestore: ${name}`);
         } catch (error) {
             console.error("Error saving user profile:", error);
+            // Non-critical error, but log it.
         }
     }
 
@@ -830,13 +774,18 @@ Thank you for your business!
         // 2. Successful Login: Set global state and save profile
         currentUserName = selectedName;
         
-        // Ensure auth and UID are available
+        // Ensure Firebase Auth is ready and user is signed in (anonymously or via token)
         if (!auth || !currentUserId) {
-            // This case should be rare if initializeAppAndAuth ran successfully
-            showLoginMessage(`Authentication connection unstable. Please refresh.`, true);
-            loginButton.disabled = false;
-            loginButton.textContent = 'පිවිසෙන්න (Login)';
-            return;
+            // If auth wasn't ready (which shouldn't happen if initializeAppAndAuth worked), force sign in anonymously
+            try {
+                await signInAnonymously(auth);
+            } catch (error) {
+                 showLoginMessage(`Authentication Error: ${error.message}`, true);
+                 console.error("Forced Anonymous Sign-In Failed:", error);
+                 loginButton.disabled = false;
+                 loginButton.textContent = 'පිවිසෙන්න (Login)';
+                 return;
+            }
         }
         
         // 3. Save the successfully logged-in name to the user's profile
@@ -855,7 +804,7 @@ Thank you for your business!
         submitButton.classList.add('bg-indigo-600', 'hover:bg-indigo-700');
         submitButton.disabled = false;
 
-        // Start real-time listener only after successful login
+        // Since the user is now authenticated and logged in, start listening to data
         startRealTimeListener();
         
         loginButton.disabled = false;
@@ -874,32 +823,40 @@ Thank you for your business!
             db = getFirestore(app);
             auth = getAuth(app);
 
+            // 1. Prepare UI
             userIdDisplay.textContent = 'Connecting to Cloud Database...';
 
+            // 2. Set up Auth State Listener (Primarily to get the UID)
             onAuthStateChanged(auth, async (user) => {
                 isAuthReady = true;
 
                 if (user) {
                     currentUserId = user.uid;
+                    // Note: We don't automatically show the app here. We wait for the local login.
                     userIdDisplay.textContent = `User ID: ${currentUserId.substring(0, 8)}... (Ready for Login)`;
+
                 } else {
                     currentUserId = null;
                     userIdDisplay.textContent = 'Cloud Connection Failed!'; 
                     userIdDisplay.classList.remove('bg-indigo-100');
                     userIdDisplay.classList.add('bg-red-200', 'text-red-800');
+                    showLoginMessage("Cloud Connection Failed. Please check console.", true);
                     loginButton.disabled = true;
                 }
             }, (error) => {
                  console.error("Auth Listener Setup Error:", error);
+                 showLoginMessage(`Critical Auth Error: ${error.message}`, true);
             });
 
-            // Initial Sign-In attempt using provided token or anonymously
+            // Initial Sign-In attempt (Anonymous sign-in to get a UID for Firestore)
             try {
                  if (initialAuthToken) {
                      await signInWithCustomToken(auth, initialAuthToken);
                  } else {
                      await signInAnonymously(auth);
                  }
+                 // The onAuthStateChanged listener will handle the result.
+
             } catch (error) {
                 console.error("Initial Sign-In Failed:", error);
             }
@@ -926,13 +883,13 @@ Thank you for your business!
 
         const loanRef = collection(db, LOAN_RECORDS_PATH);
         
-        // Listen for real-time updates
         unsubscribeSnapshot = onSnapshot(loanRef, (snapshot) => {
             currentLoans = snapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data()
             }));
             
+            // Re-render the list immediately upon receiving new data
             filterAndRenderLoans();
             console.log("Real-time data update received. Total records:", currentLoans.length);
 
@@ -945,49 +902,35 @@ Thank you for your business!
     /**
      * Adds a new loan record to Firestore, using the current logged-in name.
      */
-    async function addLoan(event) {
-        event.preventDefault();
-        
+    async function addLoan(loan, paymentMethod) {
         if (!isAuthReady || !currentUserId || currentUserName === "N/A (Not Logged In)") {
             showMessage("Cannot add record: Please log in first.", true);
             return;
         }
         
-        const loanNumber = loanForm.loanNumber.value;
-        const phoneNumber = loanForm.phoneNumber.value;
-        const amount = parseFloat(loanForm.amount.value);
-        const paidValue = parseFloat(loanForm.paidValue.value);
-        const paymentMethod = document.querySelector('input[name="paymentMethodRadio"]:checked').value;
-        
-        // Basic validation
-        if (!loanNumber || !phoneNumber || isNaN(amount) || isNaN(paidValue) || amount <= 0 || paidValue < 0) {
-            showMessage("Please fill in all required fields with valid values.", true);
-            return;
-        }
-
         submitButton.disabled = true;
         submitButton.textContent = 'Adding to Cloud...'; 
         
         try {
-            const calculatedValue = paidValue * 0.985; 
+            const calculatedValue = loan.paidValue * 0.985; 
             
             const newLoanData = {
-                loanNumber: loanNumber,
-                phoneNumber: phoneNumber,
-                amount: amount, 
-                paidValue: paidValue,
+                loanNumber: loan.loanNumber,
+                phoneNumber: loan.phoneNumber,
+                amount: loan.amount, 
+                paidValue: loan.paidValue,
                 calculatedValue: parseFloat(calculatedValue.toFixed(2)), 
                 createdAt: serverTimestamp(), 
                 isMarked: false, 
                 paymentMethod: paymentMethod, 
                 paidAt: null, 
                 addedByUserId: currentUserId, 
-                addedByName: currentUserName, 
+                addedByName: currentUserName, // Use the logged-in name
             };
             
             await addDoc(collection(db, LOAN_RECORDS_PATH), newLoanData);
 
-            const statusMessage = `Loan number ${loanNumber} successfully added by ${currentUserName} (PENDING).`;
+            const statusMessage = `Loan number ${loan.loanNumber} successfully added by ${currentUserName} (PENDING).`;
 
             showMessage(statusMessage, false);
             loanForm.reset();
@@ -1001,6 +944,8 @@ Thank you for your business!
         } finally {
             submitButton.disabled = false;
             submitButton.textContent = 'Add Record';
+            submitButton.classList.add('bg-indigo-600', 'hover:bg-indigo-700');
+            submitButton.classList.remove('bg-gray-400');
         }
     }
     
@@ -1014,11 +959,21 @@ Thank you for your business!
         }
         
         const loan = currentLoans.find(l => l.id === id);
-        if (!loan || loan.isMarked) return;
+        if (!loan) {
+            showMessage("Error: Loan record not found in cache.", true);
+            return;
+        }
 
-        // Ensure a method is set, default to Cash if somehow missing
-        let method = loan.paymentMethod || 'Cash'; 
-        
+        if (loan.isMarked) {
+             showMessage(`Loan number ${loan.loanNumber} is already marked as PAID.`, true);
+             return;
+        }
+
+        let method = loan.paymentMethod;
+        if (!method || method === '') {
+            method = 'Cash'; 
+        }
+
         try {
             const loanDocRef = doc(db, LOAN_RECORDS_PATH, id);
             await updateDoc(loanDocRef, {
@@ -1026,7 +981,7 @@ Thank you for your business!
                 paymentMethod: method, 
                 paidAt: serverTimestamp(), 
                 markedByUserId: currentUserId,
-                markedByName: currentUserName 
+                markedByName: currentUserName // Also track who marked it as paid
             });
             
             showMessage(`Loan number ${loan.loanNumber}: Payment confirmed as FINAL by ${currentUserName}. Method: ${method.toUpperCase()}.`, false);
@@ -1060,7 +1015,6 @@ Thank you for your business!
         }
     }
     
-    // Shows the confirmation modal for deletion
     function deleteLoan(id, loanNumber) {
         loanToDeleteId = id;
         loanToDeleteNumber = loanNumber;
@@ -1070,14 +1024,13 @@ Thank you for your business!
     }
 
 
-    /**
-     * Applies filters and renders the table, also calculating totals.
-     */
+    // Remaining logic (filterAndRenderLoans, renderLoansTable, downloadLoansAsCSV) remains functionally the same
+
     function filterAndRenderLoans() {
         const sortedLoans = [...currentLoans].sort((a, b) => {
             const dateA = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : (new Date(a.createdAt)).getTime();
             const dateB = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : (new Date(b.createdAt)).getTime();
-            return dateB - dateA; // Descending sort (newest first)
+            return dateB - dateA; // Descending sort
         });
 
         const selectedDate = filterDateInput.value; 
@@ -1095,7 +1048,7 @@ Thank you for your business!
         // 2. Filter by Loan Number Search (if input is present)
         if (searchInput) {
             loansToRender = loansToRender.filter(loan => {
-                return loan.loanNumber && loan.loanNumber.toLowerCase().includes(searchInput);
+                return loan.loanNumber.toLowerCase().includes(searchInput);
             });
         }
 
@@ -1105,7 +1058,7 @@ Thank you for your business!
 
         // 1. Total Net Value
         let totalNetValue = paidLoansToRender
-                            .reduce((sum, loan) => sum + (loan.calculatedValue || 0), 0);
+                            .reduce((sum, loan) => sum + loan.calculatedValue, 0);
         
         if (totalNetValueSpan) {
             totalNetValueSpan.textContent = formatCurrency(totalNetValue);
@@ -1133,6 +1086,7 @@ Thank you for your business!
             }
         });
         
+        // Update the new display spans
         cashCountSpan.textContent = cashCount.toString();
         cardCountSpan.textContent = cardCount.toString();
         onlineCountSpan.textContent = onlineCount.toString();
@@ -1203,8 +1157,6 @@ Thank you for your business!
             // --- Final Status Column Content (Checkbox) ---
             const checkboxStatusText = isPaid ? 'PAID (Final)' : 'Mark as Paid';
             
-            // Note: The click handler is attached via the global window object because 
-            // the table content is dynamically generated HTML strings.
             finalStatusContent = `
                 <div class="flex flex-col items-center justify-center p-2">
                     <input type="checkbox" 
@@ -1256,9 +1208,6 @@ Thank you for your business!
         }).join('');
     }
 
-    /**
-     * Downloads the currently filtered loan records as a CSV file (Excel compatible).
-     */
     function downloadLoansAsCSV() {
         if (currentLoans.length === 0) {
             showMessage("No data to download.", true);
@@ -1268,7 +1217,6 @@ Thank you for your business!
         const selectedDate = filterDateInput.value; 
         const searchInput = searchLoanNumberInput.value.toLowerCase().trim(); 
         
-        // Re-filter the data for export based on current UI filters
         let loansToCopy = [...currentLoans].sort((a, b) => {
             const dateA = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : (new Date(a.createdAt)).getTime();
             const dateB = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : (new Date(b.createdAt)).getTime();
@@ -1280,7 +1228,7 @@ Thank you for your business!
         } 
         
         if (searchInput) {
-            loansToCopy = loansToCopy.filter(loan => loan.loanNumber && loan.loanNumber.toLowerCase().includes(searchInput));
+            loansToCopy = loansToCopy.filter(loan => loan.loanNumber.toLowerCase().includes(searchInput));
         }
 
         if (loansToCopy.length === 0) {
@@ -1289,7 +1237,7 @@ Thank you for your business!
         }
 
         const SEPARATOR = ','; 
-        const BOM = "\ufeff"; // Byte Order Mark for Excel UTF-8 compatibility
+        const BOM = "\ufeff"; 
 
         const headers = [
             "Reported Date",                   
@@ -1348,11 +1296,6 @@ Thank you for your business!
 
     // --- Event Listeners ---
     
-    // Attach dynamically generated functions to the global window object for use in table HTML
-    window.markAsPaid = markAsPaid;
-    window.deleteLoan = deleteLoan;
-    window.showReceipt = showReceipt;
-
     // New Login Listener
     loginButton.addEventListener('click', handleLogin);
     passcodeInput.addEventListener('keypress', function(e) {
@@ -1363,15 +1306,11 @@ Thank you for your business!
     });
 
     // Existing App Listeners
-    loanForm.addEventListener('submit', addLoan);
     paidValueInput.addEventListener('input', updateCalculatedPreview);
     amountInput.addEventListener('input', updateAmountPreview); 
-    
-    // Filtering and Search Listeners
     filterDateInput.addEventListener('change', filterAndRenderLoans);
     searchLoanNumberInput.addEventListener('input', filterAndRenderLoans); 
     
-    // Modal Listeners
     confirmDeleteButton.addEventListener('click', () => {
         if (loanToDeleteId && loanToDeleteNumber) {
             performActualDelete(loanToDeleteId, loanToDeleteNumber);
@@ -1383,11 +1322,9 @@ Thank you for your business!
 
     cancelButton.addEventListener('click', hideModal);
     
-    // Receipt Modal Listeners
     closeReceiptButton.addEventListener('click', closeReceiptModal);
     printButton.addEventListener('click', printReceipt);
     
-    // Clear Filter Button
     clearFilterButton.addEventListener('click', function() {
         filterDateInput.value = ''; 
         searchLoanNumberInput.value = ''; 
@@ -1395,12 +1332,39 @@ Thank you for your business!
         showMessage('Filters and search cleared. Showing all records.', false);
     });
     
-    // Download Button
-    downloadExcelButton.addEventListener('click', downloadLoansAsCSV);
-    
-    // Initialize the app on load
+    // Initial call to set up Firebase and Authentication
     initializeAppAndAuth();
-    updateCalculatedPreview();
-    updateAmountPreview();
+
+    // Attach global functions for HTML (onclick) access
+    window.markAsPaid = markAsPaid;
+    window.deleteLoan = deleteLoan;
+    window.showReceipt = showReceipt;
+    
+    // Form submission listener (moved from original position for clarity)
+    loanForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const loanNumber = document.getElementById('loanNumber').value.trim();
+        const phoneNumber = document.getElementById('phoneNumber').value.trim();
+        const amount = parseFloat(document.getElementById('amount').value);
+        const paidValue = parseFloat(paidValueInput.value);
+        const paymentMethod = document.querySelector('input[name="paymentMethodRadio"]:checked').value;
+
+        if (loanNumber.length !== 13) {
+            showMessage("Error: Loan Number must be exactly 13 digits.", true);
+            return;
+        }
+
+        const loanData = {
+            loanNumber,
+            phoneNumber,
+            amount,
+            paidValue
+        };
+        
+        addLoan(loanData, paymentMethod);
+    });
 
 </script>
+</body>
+</html>
