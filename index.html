@@ -11,6 +11,8 @@
 <style> 
 /* Sinhala Noto Font for Placeholders */ 
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Sinhala:wght@400;700&display=swap'); 
+/* NEW: Dancing Script for Signature look */
+@import url('https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&display=swap');
 /* Ensure the Inter font is used for general text */ 
 body { 
 font-family: 'Inter', 'sans-serif'; 
@@ -237,6 +239,12 @@ color: #000 !important;
 #receiptModal > div { 
 max-width: 400px; 
 } 
+/* NEW FONT STYLE */
+.font-dancing-script {
+    font-family: 'Dancing Script', cursive;
+    font-size: 2.5rem !important; 
+    font-weight: 700;
+}
 </style> 
 </head> 
 <body> 
@@ -252,7 +260,7 @@ max-width: 400px;
 <div class="flex flex-col items-center justify-center space-y-2"> 
 <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRn0Hz-y61XQ-3RgTeYFbMDN4ZaVuJozrSYJA&s" alt="App Logo" class="h-16 w-16 object-cover rounded-xl shadow-md animate-pulse-logo" onerror="this.onerror=null; this.src='https://placehold.co/64x64/0000FF/FFFFFF?text=SM';"> 
 <h1 class="text-3xl font-bold text-gray-800 animate-color-cycle">Siriwardana Mobile</h1> 
-<p class="text-2xl font-bold text-indigo-600">LPR Loan Records Tracker</p> 
+<p class="text-2xl font-bold text-indigo-600 font-dancing-script">LPR</p> 
 </div> 
 </header> 
 <div id="status" class="mt-4 p-3 bg-indigo-50 border border-indigo-200 rounded-lg shadow-sm text-sm text-indigo-800"> 
@@ -313,7 +321,7 @@ max-width: 400px;
 </div> 
 </div> 
 <div id="calculatedPreview" class="md:col-span-2 p-3 bg-indigo-100 border border-indigo-300 rounded-lg text-sm text-indigo-800 font-medium"> -1.5% Calculated Value (Deduction): <span id="previewValue" class="font-bold">Rs. 0.00</span> </div> 
-<button type="submit" id="submitButton" disabled class="md:col-span-2 bg-gray-400 text-white p-3 rounded-lg font-semibold transition duration-150 shadow-md"> Connecting to Cloud... </button> 
+<button type="submit" id="submitButton" disabled class="md:col-span-2 bg-gray-400 text-white p-3 rounded-lg font-semibold transition duration-150 shadow-md"> Add Record and Print Receipt </button> 
 </form> 
 <div id="messageBox" class="mt-4 p-3 hidden bg-red-100 text-red-700 rounded-lg"></div> 
 </section> 
@@ -393,7 +401,7 @@ max-width: 400px;
 <th colspan="2" class="px-4 py-3 text-center text-xs font-bold text-indigo-700 uppercase tracking-wider border-b border-indigo-200">Date & Time</th> 
 <th rowspan="2" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Loan Number</th> 
 <th rowspan="2" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone Number</th> 
-<th colspan="2" class="px-4 py-3 text-center text-xs font-bold text-indigo-700 uppercase tracking-wider border-b border-indigo-200">Amount</th> 
+<th colspan="3" class="px-4 py-3 text-center text-xs font-bold text-indigo-700 uppercase tracking-wider border-b border-indigo-200">Amount</th> 
 <th rowspan="2" class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Delete / Receipt</th> 
 <th rowspan="2" class="px-4 py-3 text-center text-xs font-bold text-gray-600 uppercase tracking-wider border-l border-indigo-200">Payment Method</th> 
 <th rowspan="2" class="px-4 py-3 text-center text-xs font-bold text-red-600 uppercase tracking-wider">Paid Status</th> 
@@ -402,12 +410,12 @@ max-width: 400px;
 <tr> 
 <th class="px-4 py-3 text-center text-xs font-bold text-gray-600 uppercase tracking-wider bg-indigo-100">Date</th> 
 <th class="px-4 py-3 text-center text-xs font-bold text-gray-600 uppercase tracking-wider bg-indigo-100">Time</th> 
-<th class="px-4 py-3 text-center text-xs font-bold text-gray-600 uppercase tracking-wider bg-indigo-100">Paid Value</th> 
+<th class="px-4 py-3 text-center text-xs font-bold text-gray-600 uppercase tracking-wider bg-indigo-100">Principal</th> <th class="px-4 py-3 text-center text-xs font-bold text-gray-600 uppercase tracking-wider bg-indigo-100">Paid Value</th> 
 <th class="px-4 py-3 text-center text-xs font-bold text-gray-600 uppercase tracking-wider bg-indigo-100">-1.5% (Net)</th> 
 </tr> 
 </thead> 
 <tbody id="loanTableBody" class="bg-white divide-y divide-gray-200"> 
-<tr><td colspan="10" class="text-center py-4 text-gray-500">Connecting to Cloud Database...</td></tr> 
+<tr><td colspan="11" class="text-center py-4 text-gray-500">Connecting to Cloud Database...</td></tr> 
 </tbody> 
 </table> 
 </div> 
@@ -625,7 +633,7 @@ const message = `*Siriwardana Mobile - LPR Official Receipt* -------------------
 *TRANSACTION DETAILS* Loan Number: ${loan.loanNumber} 
 Phone Number: ${loan.phoneNumber} 
 Paid Value: ${paidValue} 
-Net Calculated Value (-1.5%): ${calculatedValue} 
+Net Calculated Value (-1.5% Transaction Fee): ${calculatedValue} 
 Payment Method: ${method} 
 Date/Time Recorded: ${dateString} ${timeString} 
 Status: ${paymentStatus} 
@@ -656,16 +664,14 @@ whatsappTimeout = setTimeout(hideWhatsAppPrompt, 20000);
 function showReceipt(id) { 
     const loan = currentLoans.find(l => l.id === id); 
     if (!loan) { 
-        showMessage("Record not found.", true); 
+        showMessage("Record not found in the current list. Try refreshing.", true); 
         return; 
     } 
     const { date, time } = formatDateTime(loan.createdAt); 
     
-    // 👇 START: The required change is here 👇
     // ණය paid ලෙස සලකුණු කර තිබුණත් නැතත්, status එක PAID (FINAL) ලෙස සලකුණු කිරීම.
     const paymentStatusText = 'PAID (FINAL)'; 
     const statusColor = 'text-green-700'; 
-    // 👆 END: The required change is here 👆
     
     const paymentMethod = loan.paymentMethod ? loan.paymentMethod.toUpperCase() : 'PENDING'; 
     const addedByName = loan.addedByName ? loan.addedByName : 'N/A'; 
@@ -707,7 +713,7 @@ function showReceipt(id) {
                     <span class="font-extrabold text-indigo-700">${formatCurrency(loan.paidValue)}</span>
                 </div>
                 <div class="flex justify-between pt-2 border-t border-dashed border-gray-400 mt-2">
-                    <span class="font-bold text-gray-800">Net Value (-1.5% Deduction):</span>
+                    <span class="font-bold text-gray-800">Net Value (-1.5% Transaction Fee):</span> 
                     <span class="font-extrabold text-green-700">${formatCurrency(loan.calculatedValue)}</span>
                 </div>
                 <p class="pt-4 text-xs text-center border-t mt-4 border-dashed border-gray-400 font-bold ${statusColor}"> Payment Status: ${paymentStatusText} </p>
@@ -789,7 +795,7 @@ loginSection.classList.add('hidden');
 mainAppContent.classList.remove('hidden'); 
 showLoginMessage(`Login Successful! Welcome, ${currentUserName}.`, false); 
 // 5. Finalize App UI and listener setup 
-submitButton.textContent = 'Add Record'; 
+submitButton.textContent = 'Add Record and Print Receipt'; 
 submitButton.classList.remove('bg-gray-400'); 
 submitButton.classList.add('bg-indigo-600', 'hover:bg-indigo-700'); 
 submitButton.disabled = false; 
@@ -865,7 +871,7 @@ console.error("Firestore Snapshot Error:", error);
 showMessage(`Real-time data error: ${error.message}`, true); 
 }); 
 } 
-/** * Adds a new loan record to Firestore, using the current logged-in name. */ 
+/** * Adds a new loan record to Firestore, using the current logged-in name, and triggers print. */ 
 async function addLoan(loan, paymentMethod) { 
 if (!isAuthReady || !currentUserId || currentUserName === "N/A (Not Logged In)") { 
 showMessage("Cannot add record: Please log in first.", true); 
@@ -882,25 +888,36 @@ amount: loan.amount,
 paidValue: loan.paidValue, 
 calculatedValue: parseFloat(calculatedValue.toFixed(2)), 
 createdAt: serverTimestamp(), 
-isMarked: false, 
+isMarked: false,
 paymentMethod: paymentMethod, 
 paidAt: null, 
 addedByUserId: currentUserId, 
 addedByName: currentUserName, // Use the logged-in name 
 }; 
-await addDoc(collection(db, LOAN_RECORDS_PATH), newLoanData); 
+const docRef = await addDoc(collection(db, LOAN_RECORDS_PATH), newLoanData); 
+const newLoanId = docRef.id;
 const statusMessage = `Loan number ${loan.loanNumber} successfully added by ${currentUserName} (PENDING).`; 
 showMessage(statusMessage, false); 
 loanForm.reset(); 
 updateCalculatedPreview(); 
 updateAmountPreview(); 
 hideWhatsAppPrompt(); 
+// 👇 NEW: Automatically show and print the receipt for the newly created PENDING record
+// Create a temporary loan object to use for immediate printing before snapshot updates
+const tempLoan = { ...newLoanData, id: newLoanId, createdAt: new Date() }; 
+// Add the temp loan to the current list for showReceipt to find it immediately
+currentLoans.push(tempLoan);
+
+showReceipt(newLoanId); 
+// Wait for the modal to display the receipt before printing
+setTimeout(printReceipt, 500); 
+
 } catch (error) { 
 console.error("Error adding record to Firestore:", error); 
 showMessage(`Error adding record: ${error.message}`, true); 
 } finally { 
 submitButton.disabled = false; 
-submitButton.textContent = 'Add Record'; 
+submitButton.textContent = 'Add Record and Print Receipt'; 
 submitButton.classList.add('bg-indigo-600', 'hover:bg-indigo-700'); 
 submitButton.classList.remove('bg-gray-400'); 
 } 
@@ -1016,7 +1033,6 @@ onlineCount++;
 cashCountSpan.textContent = cashCount.toString(); 
 cardCountSpan.textContent = cardCount.toString(); 
 onlineCountSpan.textContent = onlineCount.toString(); 
-
 // --- NEW: Calculate User Performance Summary ---
 let userTotals = {
     Ashan: { count: 0, netValue: 0 },
@@ -1024,18 +1040,15 @@ let userTotals = {
     Gihan: { count: 0, netValue: 0 },
     Menushi: { count: 0, netValue: 0 }
 };
-
 paidLoansToRender.forEach(loan => {
     // Note: We check against loan.addedByName (who created the record)
     const name = loan.addedByName; 
     const netValue = loan.calculatedValue || 0; 
-
     if (userTotals.hasOwnProperty(name)) {
         userTotals[name].count++;
         userTotals[name].netValue += netValue;
     }
 });
-
 // Update User Summary UI
 if (ashanCountSpan) {
     ashanCountSpan.textContent = userTotals.Ashan.count;
@@ -1054,23 +1067,22 @@ if (menushiCountSpan) {
     menushiNetTotalSpan.textContent = formatCurrency(userTotals.Menushi.netValue);
 }
 // --- END NEW Calculations ---
-
 // --- END Calculations --- 
 renderLoansTable(loansToRender); 
 } 
 function renderLoansTable(loans) { 
 if (!isAuthReady) { 
-loanTableBody.innerHTML = `<tr><td colspan="10" class="text-center py-4 text-gray-500">Connecting to Cloud Database...</td></tr>`; 
+loanTableBody.innerHTML = `<tr><td colspan="11" class="text-center py-4 text-gray-500">Connecting to Cloud Database...</td></tr>`; 
 return; 
 } 
 if (currentUserName === "N/A (Not Logged In)") { 
-loanTableBody.innerHTML = `<tr><td colspan="10" class="text-center py-4 text-yellow-700 font-bold">Please log in using your name and passcode to view records.</td></tr>`; 
+loanTableBody.innerHTML = `<tr><td colspan="11" class="text-center py-4 text-yellow-700 font-bold">Please log in using your name and passcode to view records.</td></tr>`; 
 return; 
 } 
 if (loans.length === 0) { 
 const filterActive = filterDateInput.value || searchLoanNumberInput.value; 
 let message = filterActive ? 'No records match the current filters.' : 'No records found in Cloud Database. Add a new record.'; 
-loanTableBody.innerHTML = `<tr><td colspan="10" class="text-center py-4 text-gray-500">${message}</td></tr>`; 
+loanTableBody.innerHTML = `<tr><td colspan="11" class="text-center py-4 text-gray-500">${message}</td></tr>`; 
 return; 
 } 
 loanTableBody.innerHTML = loans.map((loan, index) => { 
@@ -1078,6 +1090,7 @@ const { date, time } = formatDateTime(loan.createdAt);
 const isEven = index % 2 === 0; 
 const isPaid = loan.isMarked; 
 let rowClass = (isPaid ? 'paid-row' : (isEven ? 'bg-gray-50' : 'bg-white')); 
+const amountFormatted = formatCurrency(loan.amount); // Added Principal Amount
 const paidValueFormatted = formatCurrency(loan.paidValue); 
 const calculatedValueFormatted = formatCurrency(loan.calculatedValue); 
 let paymentMethodContent = ''; 
@@ -1120,7 +1133,7 @@ return `
 <td class="px-4 py-3 whitespace-nowrap text-xs text-center font-mono text-indigo-500">${time}</td> 
 <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">${loan.loanNumber}</td> 
 <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">${loan.phoneNumber}</td> 
-<td class="px-4 py-3 whitespace-nowrap text-sm font-semibold text-center text-indigo-700">${paidValueFormatted}</td> 
+<td class="px-4 py-3 whitespace-nowrap text-sm font-semibold text-center text-blue-700">${amountFormatted}</td> <td class="px-4 py-3 whitespace-nowrap text-sm font-semibold text-center text-indigo-700">${paidValueFormatted}</td> 
 <td class="px-4 py-3 whitespace-nowrap text-sm font-semibold text-center text-green-700">${calculatedValueFormatted}</td> 
 <td class="px-4 py-3 whitespace-nowrap text-center text-sm flex flex-col space-y-1 sm:block sm:space-y-0"> 
 <button onclick="window.deleteLoan('${loan.id}', '${loan.loanNumber}')" class="text-red-600 hover:text-red-800 font-semibold transition duration-150 p-2 rounded-lg hover:bg-red-100 w-full sm:w-auto"> Delete </button> 
@@ -1168,8 +1181,9 @@ const headers = [
 "Reported Time", 
 "Loan Number", 
 "Phone Number", 
-"Customer Paid Value", 
-"Calculated Net Value (-1.5%)", 
+"Principal Loan Amount (Rs.)", 
+"Customer Paid Value (Rs.)", 
+"Calculated Net Value (-1.5%) (Rs.)", 
 "Paid Status (Is Checked)", 
 "Payment Method", 
 "Added By User Name", 
@@ -1186,6 +1200,7 @@ return [
 `"${time}"`, 
 `"${loan.loanNumber}"`, 
 `"${loan.phoneNumber}"`, 
+loan.amount, 
 loan.paidValue, 
 loan.calculatedValue, 
 `"${paidStatus}"`, 
@@ -1244,6 +1259,7 @@ paidValueInput.addEventListener('input', updateCalculatedPreview);
 amountInput.addEventListener('input', updateAmountPreview); 
 filterDateInput.addEventListener('change', filterAndRenderLoans); 
 searchLoanNumberInput.addEventListener('input', filterAndRenderLoans); 
+downloadExcelButton.addEventListener('click', downloadLoansAsCSV); // Added listener for the download button
 confirmDeleteButton.addEventListener('click', () => { 
 if (loanToDeleteId && loanToDeleteNumber) { 
 performActualDelete(loanToDeleteId, loanToDeleteNumber); 
