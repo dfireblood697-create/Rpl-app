@@ -401,8 +401,8 @@ max-width: 400px;
 <th colspan="2" class="px-4 py-3 text-center text-xs font-bold text-indigo-700 uppercase tracking-wider border-b border-indigo-200">Date & Time</th> 
 <th rowspan="2" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Loan Number</th> 
 <th rowspan="2" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone Number</th> 
-<th colspan="3" class="px-4 py-3 text-center text-xs font-bold text-indigo-700 uppercase tracking-wider border-b border-indigo-200">Amount</th> 
-<th rowspan="2" class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Delete / Receipt</th> 
+<th colspan="2" class="px-4 py-3 text-center text-xs font-bold text-indigo-700 uppercase tracking-wider border-b border-indigo-200">Amount</th> 
+<th rowspan="2" class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Delete / Reprint</th> 
 <th rowspan="2" class="px-4 py-3 text-center text-xs font-bold text-gray-600 uppercase tracking-wider border-l border-indigo-200">Payment Method</th> 
 <th rowspan="2" class="px-4 py-3 text-center text-xs font-bold text-red-600 uppercase tracking-wider">Paid Status</th> 
 <th rowspan="2" class="px-4 py-3 text-center text-xs font-bold text-gray-600 uppercase tracking-wider">Added By (Name)</th> 
@@ -410,12 +410,12 @@ max-width: 400px;
 <tr> 
 <th class="px-4 py-3 text-center text-xs font-bold text-gray-600 uppercase tracking-wider bg-indigo-100">Date</th> 
 <th class="px-4 py-3 text-center text-xs font-bold text-gray-600 uppercase tracking-wider bg-indigo-100">Time</th> 
-<th class="px-4 py-3 text-center text-xs font-bold text-gray-600 uppercase tracking-wider bg-indigo-100">Principal</th> <th class="px-4 py-3 text-center text-xs font-bold text-gray-600 uppercase tracking-wider bg-indigo-100">Paid Value</th> 
+<th class="px-4 py-3 text-center text-xs font-bold text-gray-600 uppercase tracking-wider bg-indigo-100">Paid Value</th> 
 <th class="px-4 py-3 text-center text-xs font-bold text-gray-600 uppercase tracking-wider bg-indigo-100">-1.5% (Net)</th> 
 </tr> 
 </thead> 
 <tbody id="loanTableBody" class="bg-white divide-y divide-gray-200"> 
-<tr><td colspan="11" class="text-center py-4 text-gray-500">Connecting to Cloud Database...</td></tr> 
+<tr><td colspan="10" class="text-center py-4 text-gray-500">Connecting to Cloud Database...</td></tr> 
 </tbody> 
 </table> 
 </div> 
@@ -1072,17 +1072,17 @@ renderLoansTable(loansToRender);
 } 
 function renderLoansTable(loans) { 
 if (!isAuthReady) { 
-loanTableBody.innerHTML = `<tr><td colspan="11" class="text-center py-4 text-gray-500">Connecting to Cloud Database...</td></tr>`; 
+loanTableBody.innerHTML = `<tr><td colspan="10" class="text-center py-4 text-gray-500">Connecting to Cloud Database...</td></tr>`; 
 return; 
 } 
 if (currentUserName === "N/A (Not Logged In)") { 
-loanTableBody.innerHTML = `<tr><td colspan="11" class="text-center py-4 text-yellow-700 font-bold">Please log in using your name and passcode to view records.</td></tr>`; 
+loanTableBody.innerHTML = `<tr><td colspan="10" class="text-center py-4 text-yellow-700 font-bold">Please log in using your name and passcode to view records.</td></tr>`; 
 return; 
 } 
 if (loans.length === 0) { 
 const filterActive = filterDateInput.value || searchLoanNumberInput.value; 
 let message = filterActive ? 'No records match the current filters.' : 'No records found in Cloud Database. Add a new record.'; 
-loanTableBody.innerHTML = `<tr><td colspan="11" class="text-center py-4 text-gray-500">${message}</td></tr>`; 
+loanTableBody.innerHTML = `<tr><td colspan="10" class="text-center py-4 text-gray-500">${message}</td></tr>`; 
 return; 
 } 
 loanTableBody.innerHTML = loans.map((loan, index) => { 
@@ -1090,7 +1090,7 @@ const { date, time } = formatDateTime(loan.createdAt);
 const isEven = index % 2 === 0; 
 const isPaid = loan.isMarked; 
 let rowClass = (isPaid ? 'paid-row' : (isEven ? 'bg-gray-50' : 'bg-white')); 
-const amountFormatted = formatCurrency(loan.amount); // Added Principal Amount
+// const amountFormatted = formatCurrency(loan.amount); // REMOVED Principal Amount
 const paidValueFormatted = formatCurrency(loan.paidValue); 
 const calculatedValueFormatted = formatCurrency(loan.calculatedValue); 
 let paymentMethodContent = ''; 
@@ -1133,11 +1133,11 @@ return `
 <td class="px-4 py-3 whitespace-nowrap text-xs text-center font-mono text-indigo-500">${time}</td> 
 <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">${loan.loanNumber}</td> 
 <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">${loan.phoneNumber}</td> 
-<td class="px-4 py-3 whitespace-nowrap text-sm font-semibold text-center text-blue-700">${amountFormatted}</td> <td class="px-4 py-3 whitespace-nowrap text-sm font-semibold text-center text-indigo-700">${paidValueFormatted}</td> 
+<td class="px-4 py-3 whitespace-nowrap text-sm font-semibold text-center text-indigo-700">${paidValueFormatted}</td> 
 <td class="px-4 py-3 whitespace-nowrap text-sm font-semibold text-center text-green-700">${calculatedValueFormatted}</td> 
 <td class="px-4 py-3 whitespace-nowrap text-center text-sm flex flex-col space-y-1 sm:block sm:space-y-0"> 
 <button onclick="window.deleteLoan('${loan.id}', '${loan.loanNumber}')" class="text-red-600 hover:text-red-800 font-semibold transition duration-150 p-2 rounded-lg hover:bg-red-100 w-full sm:w-auto"> Delete </button> 
-<button onclick="window.showReceipt('${loan.id}')" title="View Receipt" class="font-semibold transition duration-150 p-2 rounded-lg mt-1 sm:mt-0 ml-0 sm:ml-2 w-full sm:w-auto text-blue-600 hover:text-blue-800 hover:bg-blue-100"> Receipt </button> 
+<button onclick="window.showReceipt('${loan.id}')" title="View Receipt" class="font-semibold transition duration-150 p-2 rounded-lg mt-1 sm:mt-0 ml-0 sm:ml-2 w-full sm:w-auto text-blue-600 hover:text-blue-800 hover:bg-blue-100"> Reprint </button> 
 </td> 
 <td class="px-4 py-3 whitespace-nowrap text-center text-sm border-l border-gray-200"> 
 ${paymentMethodContent} 
