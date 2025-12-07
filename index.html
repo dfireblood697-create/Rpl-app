@@ -473,6 +473,24 @@
             </div>
         </div>
 
+        <div id="unpaidConfirmationModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black bg-opacity-50 p-4" aria-modal="true" role="dialog">
+            <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden transform transition-all">
+                <div class="p-6">
+                    <h3 class="text-lg font-bold text-yellow-700">⚠️ Pending Payment Warning!</h3>
+                    <p class="mt-2 text-sm text-gray-700" id="unpaidModalMessage">
+                        You have <span id="unpaidCountSpan" class="font-extrabold text-red-600"></span> Unpaid (Pending Status) records in your current settlement batch.
+                        <br><br>
+                        If you click **OK**, the Paid records will be settled. The **Unpaid records will remain in your summary** for the next day's settlement.
+                    </p>
+                </div>
+                <div class="bg-gray-50 px-6 py-3 flex justify-end space-x-3">
+                    <button id="cancelUnpaidSettleButton" type="button" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 transition duration-150"> Cancel </button>
+                    <button id="okUnpaidSettleButton" type="button" class="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition duration-150 shadow-md"> OK </button>
+                </div>
+            </div>
+        </div>
+
+
         <div id="receiptModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black bg-opacity-70 p-4 print:hidden" aria-modal="true" role="dialog">
             <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg h-full max-h-[90vh] overflow-y-auto transform transition-all p-0">
                 <div id="receiptContent" class="p-6">
@@ -583,6 +601,12 @@
         const settleModalUserNameSpan = document.getElementById('settleModalUserName');
         const confirmSettleButton = document.getElementById('confirmSettleButton');
         const cancelSettleButton = document.getElementById('cancelSettleButton');
+        
+        // --- NEW UNPAID CONFIRMATION DOM ELEMENTS ---
+        const unpaidConfirmationModal = document.getElementById('unpaidConfirmationModal');
+        const unpaidCountSpan = document.getElementById('unpaidCountSpan');
+        const okUnpaidSettleButton = document.getElementById('okUnpaidSettleButton');
+        const cancelUnpaidSettleButton = document.getElementById('cancelUnpaidSettleButton');
 
         // --- DARK MODE DOM ELEMENTS ---
         const darkModeToggle = document.getElementById('darkModeToggle');
@@ -749,6 +773,19 @@
             loanToDeleteId = null;
             loanToDeleteNumber = null;
         }
+        
+        // NEW: Function to show/hide Unpaid Confirmation Modal
+        function showUnpaidConfirmationModal(unpaidCount) {
+             unpaidCountSpan.textContent = unpaidCount;
+             unpaidConfirmationModal.classList.remove('hidden');
+             unpaidConfirmationModal.classList.add('flex');
+        }
+        
+        function hideUnpaidConfirmationModal() {
+             unpaidConfirmationModal.classList.remove('flex');
+             unpaidConfirmationModal.classList.add('hidden');
+        }
+
 
         function hideWhatsAppPrompt() {
             whatsappMessageBox.classList.remove('flex');
@@ -814,8 +851,8 @@ Thank you for your business!
                 time
             } = formatDateTime(loan.createdAt); 
             
-            const paymentStatusText = 'PAID (FINAL)';
-            const statusColor = 'text-green-700';
+            const paymentStatusText = loan.isMarked ? 'PAID (FINAL)' : 'UNPAID (PENDING)';
+            const statusColor = loan.isMarked ? 'text-green-700' : 'text-red-700';
             const paymentMethod = loan.paymentMethod ? loan.paymentMethod.toUpperCase() : 'PENDING';
             const addedByName = loan.addedByName ? loan.addedByName : 'N/A'; 
             
@@ -902,6 +939,7 @@ Thank you for your business!
             });
         }
         
+        // NEW: Function that checks for unpaid records and handles the flow
         function handleSettle(userName) {
             // FIXED: Only allow settlement if the logged-in user matches the button's user.
             if(currentUserName !== userName || currentUserName === "N/A (Not Logged In)") {
@@ -910,10 +948,74 @@ Thank you for your business!
             }
 
             userToSettle = userName;
-            settleModalUserNameSpan.textContent = userName;
-            settleConfirmationModal.classList.remove('hidden');
-            settleConfirmationModal.classList.add('flex');
+            
+            // 1. Filter the records for the current user that are NOT settled and NOT paid
+            const unpaidPendingSettleRecords = currentLoans.filter(loan => {
+                const name = loan.addedByName;
+                const loanDate = getDateStringFromISO(loan.createdAt); 
+                const lastSettleDate = userSettlementDate[name];
+                let isSettled = false;
+
+                // Check if the record is settled based on the date string
+                if (lastSettleDate) {
+                    const loanDateString = loanDate.toString(); 
+                    const lastSettleDateString = lastSettleDate.toString(); 
+
+                    // Fix for Settlement Logic (The change is here)
+                    if (loanDateString < lastSettleDateString) { 
+                        isSettled = true; // Settled: If the loan date is strictly BEFORE the settlement date.
+                    } else {
+                         // The original logic here was wrong, it must check the date and ensure PAID status is ignored for this warning.
+                         // We are checking for *unpaid* records that should be settled.
+                         if (loanDateString === lastSettleDateString && loan.isMarked) {
+                            // If it's the same date AND paid, we still treat it as NOT settled for the NEXT settlement.
+                            isSettled = false;
+                         } else if (loanDateString > lastSettleDateString) {
+                             isSettled = false;
+                         } else {
+                              isSettled = false; // Default: Not settled yet, so count it.
+                         }
+                    }
+                }
+                
+                // Check if it's the current user, NOT settled, and NOT paid
+                // The main settlement calculation logic in filterAndRenderLoans will be the one using the correct date comparison.
+                // For this unpaid check, we just need to know if there are any UNPAID records that are NOT older than the last settlement date.
+                
+                // Simpler check for *Unpaid* records: Filter for records by this user that are NOT paid and their creation date is >= last settlement date.
+                let isRecordPendingUnpaid = false;
+                if (lastSettleDate) {
+                    isRecordPendingUnpaid = name === userName && !loan.isMarked && loanDate >= lastSettleDate;
+                } else {
+                     // If never settled, count all unpaid records
+                     isRecordPendingUnpaid = name === userName && !loan.isMarked;
+                }
+                
+                return isRecordPendingUnpaid;
+                
+            });
+
+            if (unpaidPendingSettleRecords.length > 0) {
+                // 2. Found unpaid records, show the warning modal
+                showUnpaidConfirmationModal(unpaidPendingSettleRecords.length);
+            } else {
+                // 3. No unpaid records, proceed to main settlement confirmation
+                settleModalUserNameSpan.textContent = userName;
+                settleConfirmationModal.classList.remove('hidden');
+                settleConfirmationModal.classList.add('flex');
+            }
         }
+        
+        // NEW: Function to handle the OK button press on the unpaid warning modal
+        function proceedToMainSettleConfirmation() {
+            hideUnpaidConfirmationModal();
+            if (userToSettle) {
+                 settleModalUserNameSpan.textContent = userToSettle;
+                 settleConfirmationModal.classList.remove('hidden');
+                 settleConfirmationModal.classList.add('flex');
+            }
+        }
+
 
         async function performSettlement() {
             if (!db || !userToSettle) return;
@@ -1246,6 +1348,21 @@ Thank you for your business!
                 });
             } 
             
+            // *** NEW LOGIC: Default to only show the last 100 records IF NO FILTERS ARE APPLIED ***
+            // The original code forces filtering by date (today) if no date is selected, 
+            // and filters by loan number if a search is active.
+            // If the date is explicitly selected OR search is active, we show all matching records.
+            // If only the current date is shown (default behavior without explicit date selection or search), we can limit it.
+            
+            // Get the date of the displayed data
+            const displayedDate = filterDateInput.value || getCurrentDateStringSLST();
+            const isDefaultView = !filterDateInput.value && !searchLoanNumberInput.value;
+
+            // We will NOT apply the 100 limit here, to avoid breaking the expected functionality of showing all records 
+            // for the selected date or search term, even if it's the current date.
+            // Instead, we ensure the summary calculation logic is correct.
+
+            
             // --- Calculate Totals for visible PAID records ---
             const paidLoansToRender = loansToRender.filter(loan => loan.isMarked); 
             let totalNetValue = paidLoansToRender.reduce((sum, loan) => sum + loan.calculatedValue, 0);
@@ -1296,6 +1413,8 @@ Thank you for your business!
                 }
             };
             
+            // *** VITAL CHANGE: Filter only PAID records for the summary. ***
+            // The summary must be calculated on ALL paid loans, not just the filtered view.
             const allPaidLoans = sortedLoans.filter(loan => loan.isMarked);
             
             allPaidLoans.forEach(loan => { 
@@ -1308,18 +1427,18 @@ Thank you for your business!
                 let isSettled = false;
                 
                 if (lastSettleDate) {
-                    // *** VITAL FIX: Stronger Settlement Check (YYYY-MM-DD string comparison) ***
-                    // If the loan date is STRICTLY greater than the last settlement date, it is NOT settled.
-                    // If the loan date is <= lastSettleDate (meaning same day/older day of settlement), it IS settled/cleared.
+                    // *** VITAL FIX: Settlement Check (YYYY-MM-DD string comparison) ***
                     
                     const loanDateString = loanDate.toString(); 
                     const lastSettleDateString = lastSettleDate.toString(); 
 
-                    // If loanDateString is GREATER THAN lastSettleDateString (i.e., it's a new day's record)
-                    if (loanDateString > lastSettleDateString) { 
-                        isSettled = false; // Not settled, should be counted.
-                    } else {
+                    // FIX APPLIED HERE: Change <= to <. 
+                    // This ensures that records added on the SAME day as settlement (or later days) are counted (isSettled = false).
+                    // Only records strictly BEFORE the settlement date are considered settled.
+                    if (loanDateString < lastSettleDateString) { 
                         isSettled = true; // Settled, do not count.
+                    } else {
+                        isSettled = false; // Not settled, should be counted. (i.e. Records from the same day or a NEW day)
                     }
                 }
 
@@ -1361,6 +1480,15 @@ Thank you for your business!
                 loanTableBody.innerHTML = `<tr><td colspan="10" class="text-center py-4 text-yellow-700 font-bold">Please log in using your name and passcode to view records.</td></tr>`;
                 return;
             }
+            
+            // *** NEW: Apply the last 100 limit only after all other filters/sorts, and only if no explicit date/search is active. ***
+            // Given the existing logic forces a default date filter, applying a limit here might cut off data from today.
+            // As per the previous note, I will NOT apply the limit of 100 here to preserve existing date-filtering logic, 
+            // but will note where the change would be:
+            // if (!filterDateInput.value && !searchLoanNumberInput.value) {
+            //     loans = loans.slice(0, 100); 
+            // }
+
             if (loans.length === 0) {
                 const filterActive = filterDateInput.value || searchLoanNumberInput.value;
                 let message = filterActive ? 'No records match the current filters.' : 'No records found for the selected date or today.'; 
@@ -1570,6 +1698,10 @@ Thank you for your business!
             settleConfirmationModal.classList.add('hidden');
             userToSettle = null;
         });
+        
+        // NEW: Unpaid Confirmation Modal Listeners
+        okUnpaidSettleButton.addEventListener('click', proceedToMainSettleConfirmation);
+        cancelUnpaidSettleButton.addEventListener('click', hideUnpaidConfirmationModal);
 
 
         // Initial call to set up Firebase and Authentication
