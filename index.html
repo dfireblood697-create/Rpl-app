@@ -432,7 +432,7 @@
                     </div>
                 </div>
 
-                <h3 class="text-lg font-bold text-red-700 mb-3 border-b pb-1 mt-6">⚠️ Cashier Settlement (පියවීම)</h3>
+                <h3 class="text-lg font-bold text-red-700 mb-3 border-b pb-1 mt-6">💲Cashier Settlement</h3>
                 <div id="settlementButtonsContainer" class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
                     <button data-user="Ashan" class="settle-button p-3 bg-red-100 border border-red-300 rounded-lg font-bold text-red-700 hover:bg-red-200 transition duration-150 shadow-md hidden-settle">
                         Ashan: Settle Now
@@ -451,16 +451,22 @@
                 <div class="flex flex-col space-y-3 mb-4">
                     <div class="grid grid-cols-3 gap-2">
                         <div id="cashCountDisplay" class="p-3 bg-green-50 border border-green-300 rounded-lg text-green-800 shadow-md text-center">
-                            <span class="font-bold text-xs sm:text-sm block">Cash Payments</span>
+                            <span class="font-bold text-xs sm:text-sm block">Cash Payments (Count)</span>
                             <span id="cashCountSpan" class="text-green-700 text-lg sm:text-2xl font-extrabold">0</span>
+                            <span class="font-bold text-xs sm:text-sm block mt-1">Total Net Value</span>
+                            <span id="cashValueSpan" class="text-indigo-800 text-lg sm:text-xl font-extrabold">Rs. 0.00</span>
                         </div>
                         <div id="cardCountDisplay" class="p-3 bg-blue-50 border border-blue-300 rounded-lg text-blue-800 shadow-md text-center">
-                            <span class="font-bold text-xs sm:text-sm block">Card Payments</span>
+                            <span class="font-bold text-xs sm:text-sm block">Card Payments (Count)</span>
                             <span id="cardCountSpan" class="text-blue-700 text-lg sm:text-2xl font-extrabold">0</span>
+                            <span class="font-bold text-xs sm:text-sm block mt-1">Total Net Value</span>
+                            <span id="cardValueSpan" class="text-indigo-800 text-lg sm:text-xl font-extrabold">Rs. 0.00</span>
                         </div>
                         <div id="onlineCountDisplay" class="p-3 bg-purple-50 border border-purple-300 rounded-lg text-purple-800 shadow-md text-center">
-                            <span class="font-bold text-xs sm:text-sm block">Online Payments</span>
+                            <span class="font-bold text-xs sm:text-sm block">Online Payments (Count)</span>
                             <span id="onlineCountSpan" class="text-purple-700 text-lg sm:text-2xl font-extrabold">0</span>
+                            <span class="font-bold text-xs sm:text-sm block mt-1">Total Net Value</span>
+                            <span id="onlineValueSpan" class="text-indigo-800 text-lg sm:text-xl font-extrabold">Rs. 0.00</span>
                         </div>
                     </div>
                     <div class="grid grid-cols-2 gap-2">
@@ -647,6 +653,11 @@
         const cashCountSpan = document.getElementById('cashCountSpan');
         const cardCountSpan = document.getElementById('cardCountSpan');
         const onlineCountSpan = document.getElementById('onlineCountSpan');
+        
+        // --- NEW DOM Elements for Payment Values ---
+        const cashValueSpan = document.getElementById('cashValueSpan'); 
+        const cardValueSpan = document.getElementById('cardValueSpan'); 
+        const onlineValueSpan = document.getElementById('onlineValueSpan'); 
         
         // --- USER SUMMARY DOM ELEMENTS ---
         const ashanCountSpan = document.getElementById('ashanCount');
@@ -1530,8 +1541,8 @@ Thank you for your business!
             const searchInput = searchLoanNumberInput.value.toLowerCase().trim();
             let loansToRender = sortedLoans; 
             
-            // If NO filter date is selected, filter by the last settlement date (or show all if no settlement)
-            if (!selectedDate) {
+            // 🛑 CRITICAL CHANGE: If NO filter date AND NO search input, apply the Settlement Filter
+            if (!selectedDate && !searchInput) { 
                 loansToRender = loansToRender.filter(loan => {
                     const name = loan.addedByName;
                     const lastSettleDate = userSettlementDate[name];
@@ -1548,16 +1559,19 @@ Thank you for your business!
                     return loanTimestamp >= lastSettleTimestamp; 
                 });
             } else {
-                 // If filter date is selected, apply the date filter regardless of settlement status
-                loansToRender = loansToRender.filter(loan => { 
-                    return getDateStringFromISO(loan.createdAt) === selectedDate;
-                });
-            } 
-            
-            if (searchInput) { 
-                loansToRender = loansToRender.filter(loan => {
-                    return loan.loanNumber.toLowerCase().includes(searchInput);
-                });
+                 // If filter date OR search input is selected, apply the relevant filter only (SKIPPING Settlement Filter)
+                 if (selectedDate) {
+                    loansToRender = loansToRender.filter(loan => { 
+                        return getDateStringFromISO(loan.createdAt) === selectedDate;
+                    });
+                 }
+                 if (searchInput) { 
+                    // Search is done on the full list if no date filter is applied, or on the date-filtered list if a date is present.
+                    loansToRender = loansToRender.filter(loan => {
+                        return loan.loanNumber.toLowerCase().includes(searchInput);
+                    });
+                 }
+                 // The Settlement Filter is SKIPPED here, allowing search/date filter to override it.
             } 
             
             // Calculate totals for the header based on loansToRender (filtered list)
@@ -1571,22 +1585,40 @@ Thank you for your business!
                 totalMarkedCountSpan.textContent = markedCount.toString();
             } 
             
+            // --- UPDATED PAYMENT METHOD CALCULATION ---
             let cashCount = 0;
             let cardCount = 0;
             let onlineCount = 0;
+            
+            let cashValue = 0; // NEW VALUE
+            let cardValue = 0; // NEW VALUE
+            let onlineValue = 0; // NEW VALUE
+
             paidLoansToRender.forEach(loan => {
                 const method = (loan.paymentMethod || '').toLowerCase();
+                const netValue = loan.calculatedValue || 0;
+                
                 if (method === 'cash') {
                     cashCount++;
+                    cashValue += netValue; // Accumulate value
                 } else if (method === 'card') {
                     cardCount++;
+                    cardValue += netValue; // Accumulate value
                 } else if (method === 'online') {
                     onlineCount++;
+                    onlineValue += netValue; // Accumulate value
                 }
             }); 
+
+            // Update Counts (Existing)
             cashCountSpan.textContent = cashCount.toString();
             cardCountSpan.textContent = cardCount.toString();
             onlineCountSpan.textContent = onlineCount.toString(); 
+            
+            // Update Values (NEW)
+            cashValueSpan.textContent = formatCurrency(cashValue); 
+            cardValueSpan.textContent = formatCurrency(cardValue);
+            onlineValueSpan.textContent = formatCurrency(onlineValue);
             
             
             renderLoansTable(loansToRender);
@@ -1692,6 +1724,8 @@ Thank you for your business!
             }
             const SEPARATOR = ',';
             const BOM = "\ufeff";
+            
+            // --- UPDATED HEADERS ---
             const headers = [
                 "Reported Date",
                 "Reported Time",
@@ -1701,10 +1735,13 @@ Thank you for your business!
                 "Customer Paid Value (Rs.)",
                 "Calculated Net Value (-1.5%) (Rs.)",
                 "Paid Status (Is Checked)",
-                "Payment Method",
+                "Payment Method - CASH (Rs.)",   // NEW COLUMN 1
+                "Payment Method - CARD (Rs.)",   // NEW COLUMN 2
+                "Payment Method - ONLINE (Rs.)", // NEW COLUMN 3
                 "Added By User Name",
                 "Added By User ID"
             ];
+            
             const csvRows = loansToCopy.map(loan => {
                 const {
                     date,
@@ -1714,16 +1751,40 @@ Thank you for your business!
                 const paymentMethod = loan.paymentMethod || 'NONE';
                 const addedByName = loan.addedByName || 'N/A';
                 const addedByUserId = loan.addedByUserId || 'N/A';
+                
+                const paidValue = loan.paidValue || 0;
+                
+                // --- NEW: Distribute Paid Value to correct Payment Method column ---
+                let cashValue = 0;
+                let cardValue = 0;
+                let onlineValue = 0;
+
+                // We only apply the value to the method if the record is PAID/MARKED
+                if (loan.isMarked) { 
+                    const method = paymentMethod.toUpperCase();
+                    if (method === 'CASH') {
+                        cashValue = paidValue;
+                    } else if (method === 'CARD') {
+                        cardValue = paidValue;
+                    } else if (method === 'ONLINE') {
+                        onlineValue = paidValue;
+                    }
+                    // If method is 'NONE' or empty for a PAID record, it defaults to 0 in all columns. 
+                    // This should not happen if the user followed the input form correctly.
+                }
+
                 return [
                     `"${date}"`,
                     `"${time}"`,
                     `"${loan.loanNumber}"`,
                     `"${loan.phoneNumber}"`,
                     loan.amount,
-                    loan.paidValue,
+                    paidValue,
                     loan.calculatedValue,
                     `"${paidStatus}"`,
-                    `"${paymentMethod}"`,
+                    cashValue,   // Cash Column Value
+                    cardValue,   // Card Column Value
+                    onlineValue, // Online Column Value
                     `"${addedByName}"`,
                     `"${addedByUserId}"`
                 ].join(SEPARATOR);
