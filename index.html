@@ -154,7 +154,7 @@
             background-color: #1E1E1E !important;
             border-color: #333 !important;
         }
-        /* Specific section background/border adjustments */
+        /* Specific section background/border adjustments for dark mode */
         body.dark-mode #status, body.dark-mode .bg-indigo-50, body.dark-mode .bg-gray-100, body.dark-mode .bg-yellow-100 {
             background-color: #2D2D2D !important;
             border-color: #444 !important;
@@ -464,7 +464,7 @@
             <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden transform transition-all">
                 <div class="p-6">
                     <h3 class="text-lg font-bold text-red-700" id="settleModalTitle">Confirm Settlement</h3>
-                    <p class="mt-2 text-sm text-gray-700" id="settleModalMessage">Are you sure you want to **Settle** the account for <span id="settleModalUserName" class="font-mono font-semibold text-red-600"></span>? This will reset the daily calculation and mark all records up to **Yesterday** as settled.</p>
+                    <p class="mt-2 text-sm text-gray-700" id="settleModalMessage">Are you sure you want to **Settle** the account for <span id="settleModalUserName" class="font-mono font-semibold text-red-600"></span>? This will reset the daily calculation and **mark ALL records up to the Current Date/Time as settled**.</p>
                 </div>
                 <div class="bg-gray-50 px-6 py-3 flex justify-end space-x-3">
                     <button id="cancelSettleButton" type="button" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 transition duration-150"> Cancel </button>
@@ -692,6 +692,32 @@
             return date;
         }
 
+        /**
+         * Returns the current date in YYYY-MM-DD format based on Sri Lanka Standard Time (SLST).
+         * *** ADDED FOR SETTLEMENT FIX ***
+         */
+        function getCurrentDateStringSLST() {
+            const today = new Date(); 
+            // 5 hours 30 minutes = 330 minutes offset from UTC
+            const offset = 330 * 60000; // 330 minutes * 60000 ms/min
+            
+            // Calculate today's time in milliseconds adjusted to SLST
+            const todaySLST = today.getTime() + today.getTimezoneOffset() * 60000 + offset; 
+            
+            // Create a new date object representing the current date in SLST
+            const currentDate = new Date(todaySLST);
+            
+            // Format to YYYY-MM-DD using SLST Timezone
+            const date = currentDate.toLocaleDateString('en-US', { 
+                year: 'numeric', 
+                month: '2-digit', 
+                day: '2-digit', 
+                timeZone: 'Asia/Colombo' // SLST Timezone
+            }).split('/').reverse().join('-');
+            return date;
+        }
+
+
         function updateAmountPreview() {
             const principalAmount = parseFloat(amountInput.value);
             if (isNaN(principalAmount) || principalAmount <= 0) {
@@ -854,7 +880,7 @@ Thank you for your business!
         }
 
         // ---------------------------------------------------------------------
-        // NEW Settlement Logic
+        // NEW Settlement Logic (Modified to use Current Date/Time)
         // ---------------------------------------------------------------------
 
         function listenForSettlementData() {
@@ -865,7 +891,8 @@ Thank you for your business!
                 if (docSnap.exists()) {
                     userSettlementDate = docSnap.data();
                     console.log("Settlement Data Updated:", userSettlementDate);
-                    // Re-render to update the user summary based on the new settlement data
+                    // VITAL FIX: Immediately force a re-render/re-calculation of summaries 
+                    // when the settlement date changes in Firebase.
                     filterAndRenderLoans(); 
                 } else {
                     userSettlementDate = {};
@@ -893,21 +920,26 @@ Thank you for your business!
             confirmSettleButton.disabled = true;
             confirmSettleButton.textContent = 'Settling...';
 
-            // Get yesterday's date string in SLST (YYYY-MM-DD)
-            const yesterdaySLST = getYesterdayDateStringSLST();
+            // *** VITAL CHANGE ***: Get the CURRENT date string (SLST) to mark records up to NOW as settled.
+            const settleDateSLST = getCurrentDateStringSLST(); 
             
             try {
                 const settleRef = doc(db, 'settlement_status', 'user_settlements');
                 
-                // Update the user's settlement date to yesterday's date string (SLST)
+                // Update the user's settlement date to TODAY's date string (SLST)
                 await setDoc(settleRef, {
-                    [userToSettle]: yesterdaySLST,
+                    [userToSettle]: settleDateSLST,
                     // Add timestamp to track when the settlement was done, useful for auditing
                     [`${userToSettle}_settledAt`]: serverTimestamp() 
                 }, { merge: true });
 
-                showMessage(`${userToSettle}'s account successfully settled up to ${yesterdaySLST}. Daily totals reset.`, false);
-                // FIX: Corrected modal closing to properly hide the flex container
+                // VITAL UI CHANGE: Message indicates settlement up to TODAY (the moment of click)
+                showMessage(`${userToSettle}'s account successfully settled up to ${settleDateSLST}. All today's totals reset.`, false);
+                
+                // VITAL FIX: Force a small delay to ensure Firestore listener receives the update
+                await new Promise(resolve => setTimeout(resolve, 500)); 
+
+                // Corrected modal closing
                 settleConfirmationModal.classList.remove('flex');
                 settleConfirmationModal.classList.add('hidden');
                 
@@ -1196,14 +1228,8 @@ Thank you for your business!
             
             // --- Logic: Default to Today's Date if no date is manually selected ---
             if (!selectedDate) {
-                const today = new Date();
-                const slstToday = today.toLocaleDateString('en-US', {
-                    year: 'numeric',
-                    month: '2-digit',
-                    day: '2-digit',
-                    timeZone: 'Asia/Colombo' // SLST
-                }).split('/').reverse().join('-');
-                selectedDate = slstToday; 
+                // *** MODIFIED: Use getCurrentDateStringSLST for consistency ***
+                selectedDate = getCurrentDateStringSLST(); 
             } 
             
             // 1. Filter by Date
@@ -1282,15 +1308,22 @@ Thank you for your business!
                 let isSettled = false;
                 
                 if (lastSettleDate) {
-                    // NEW/FIXED LOGIC: 
-                    // If the loan's date is equal to OR before the last settlement date, it is considered settled.
-                    // This comparison (loanDate <= lastSettleDate) ensures that the settled records are excluded.
-                    if (loanDate <= lastSettleDate) {
-                        isSettled = true;
+                    // *** VITAL FIX: Stronger Settlement Check (YYYY-MM-DD string comparison) ***
+                    // If the loan date is STRICTLY greater than the last settlement date, it is NOT settled.
+                    // If the loan date is <= lastSettleDate (meaning same day/older day of settlement), it IS settled/cleared.
+                    
+                    const loanDateString = loanDate.toString(); 
+                    const lastSettleDateString = lastSettleDate.toString(); 
+
+                    // If loanDateString is GREATER THAN lastSettleDateString (i.e., it's a new day's record)
+                    if (loanDateString > lastSettleDateString) { 
+                        isSettled = false; // Not settled, should be counted.
+                    } else {
+                        isSettled = true; // Settled, do not count.
                     }
                 }
 
-                if (!isSettled) {
+                if (!isSettled) { // Count only if NOT settled
                     if (userTotals.hasOwnProperty(name)) {
                         userTotals[name].count++;
                         userTotals[name].netValue += netValue;
