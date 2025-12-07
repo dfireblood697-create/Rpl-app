@@ -249,6 +249,57 @@
         .hidden-settle {
             display: none !important;
         }
+
+        /* NEW: Online Status Styling */
+        .online-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 8px;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #10B981; /* Green 500 */
+            background-color: #D1FAE5; /* Green 100 */
+        }
+        .online-dot {
+            width: 8px;
+            height: 8px;
+            background-color: #10B981; /* Green 500 */
+            border-radius: 50%;
+            margin-right: 4px;
+            animation: pulse-online 1.5s infinite;
+        }
+        .offline-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 8px;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #F87171; /* Red 400 */
+            background-color: #FEE2E2; /* Red 100 */
+        }
+        .offline-dot {
+            width: 8px;
+            height: 8px;
+            background-color: #EF4444; /* Red 500 */
+            border-radius: 50%;
+            margin-right: 4px;
+        }
+        @keyframes pulse-online {
+            0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+            70% { box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+        }
+        /* Dark Mode adjustments for presence */
+        body.dark-mode .online-badge {
+            color: #10b981;
+            background-color: #14532D; /* Darker green background */
+        }
+        body.dark-mode .offline-badge {
+            color: #FCA5A5; /* Lighter red text */
+            background-color: #7F1D1D; /* Darker red background */
+        }
     </style>
 </head>
 <body>
@@ -271,6 +322,14 @@
             <p class="font-semibold">System Status: <span id="userIdDisplay" class="font-mono text-xs bg-indigo-100 px-2 py-1 rounded"> Connecting to Cloud Database... </span> </p>
             <p id="cloudInfo" class="mt-1 text-xs text-indigo-700 font-medium"> Data is saved in the Cloud Database (Firestore) in real-time and shared among all users. </p>
         </div>
+
+        <section id="cashierOnlineStatus" class="mt-4 p-4 bg-gray-100 border border-gray-300 rounded-lg shadow-inner hidden">
+            <h3 class="text-sm font-bold text-gray-700 mb-2 border-b pb-1">👤 Cashiers Online Status (Real-time)</h3>
+            <div id="onlineStatusBadges" class="flex flex-wrap gap-3">
+                </div>
+        </section>
+
+
         <section id="loginSection" class="mt-6 p-6 bg-yellow-100 border border-yellow-400 rounded-xl shadow-2xl">
             <h2 class="text-2xl font-bold text-yellow-800 mb-4 text-center">User Login</h2>
             <div id="loginMessage" class="hidden p-3 mb-4 text-sm font-medium rounded-lg"></div>
@@ -516,18 +575,21 @@
         let currentUserName = "N/A (Not Logged In)";
         let isAuthReady = false;
         let unsubscribeSnapshot = null;
+        let unsubscribePresence = null; 
         let currentLoans = [];
-        let userSettlementDate = {}; // To store the last settlement date/time for each user
-        let userToSettle = null; // To hold the user name for the settlement process
+        let userSettlementDate = {}; 
+        let userToSettle = null; 
+        const knownUsers = ["Ashan", "Dilshan", "Gihan", "Menushi"]; 
+        const onlineUsers = {}; 
 
-
-        // Passcode Mapping for Login (Client-Side)
+        // --- VITAL: Hardcoded User Passcodes (MUST BE ADDED) ---
         const USER_PASSCODES = {
-            Ashan: '1',
-            Dilshan: '2',
-            Gihan: '3',
-            Menushi: '4'
+            "Ashan": "1111", 
+            "Dilshan": "2222", 
+            "Gihan": "3333", 
+            "Menushi": "4444" 
         };
+        // --------------------------------------------------------
 
         // VITAL CHANGE: HARDCODED Firebase Configuration for rplp-44da4 Project
         // **IMPORTANT: Replace API Key and Project ID with your actual values if the connection fails**
@@ -546,6 +608,7 @@
 
         // Firestore Collection Paths
         const LOAN_RECORDS_PATH = `loan_records`;
+        const USER_PRESENCE_PATH = `user_presence`; 
         const getUserProfilePath = (userId) => `users/${userId}`;
 
         // --- DOM Elements ---
@@ -595,14 +658,14 @@
         const menushiCountSpan = document.getElementById('menushiCount');
         const menushiNetTotalSpan = document.getElementById('menushiNetTotal');
 
-        // --- NEW SETTLEMENT DOM ELEMENTS ---
+        // --- SETTLEMENT DOM ELEMENTS ---
         const settlementButtonsContainer = document.getElementById('settlementButtonsContainer'); 
         const settleConfirmationModal = document.getElementById('settleConfirmationModal');
         const settleModalUserNameSpan = document.getElementById('settleModalUserName');
         const confirmSettleButton = document.getElementById('confirmSettleButton');
         const cancelSettleButton = document.getElementById('cancelSettleButton');
         
-        // --- NEW UNPAID CONFIRMATION DOM ELEMENTS ---
+        // --- UNPAID CONFIRMATION DOM ELEMENTS ---
         const unpaidConfirmationModal = document.getElementById('unpaidConfirmationModal');
         const unpaidCountSpan = document.getElementById('unpaidCountSpan');
         const okUnpaidSettleButton = document.getElementById('okUnpaidSettleButton');
@@ -611,6 +674,12 @@
         // --- DARK MODE DOM ELEMENTS ---
         const darkModeToggle = document.getElementById('darkModeToggle');
         const modeLabel = document.getElementById('modeLabel');
+        
+        // --- NEW PRESENCE DOM ELEMENTS ---
+        const cashierOnlineStatus = document.getElementById('cashierOnlineStatus');
+        const onlineStatusBadges = document.getElementById('onlineStatusBadges');
+
+
         let whatsappTimeout = null;
         let loanToDeleteId = null;
         let loanToDeleteNumber = null;
@@ -691,52 +760,17 @@
             }).split('/').reverse().join('-');
             return date;
         }
-        
-        /**
-         * Calculates yesterday's date in YYYY-MM-DD format based on Sri Lanka Standard Time (SLST).
-         */
-        function getYesterdayDateStringSLST() {
-            const today = new Date(); 
-            // 5 hours 30 minutes = 330 minutes offset from UTC
-            const offset = 330 * 60000; // 330 minutes * 60000 ms/min
-            
-            // Calculate today's time in milliseconds adjusted to SLST
-            const todaySLST = today.getTime() + today.getTimezoneOffset() * 60000 + offset; 
-            
-            // Create a new date object representing yesterday in SLST
-            const yesterday = new Date(todaySLST - (24 * 60 * 60 * 1000));
-            
-            // Format to YYYY-MM-DD using SLST Timezone
-            const date = yesterday.toLocaleDateString('en-US', { 
-                year: 'numeric', 
-                month: '2-digit', 
-                day: '2-digit', 
-                timeZone: 'Asia/Colombo' // SLST Timezone
-            }).split('/').reverse().join('-');
-            return date;
-        }
 
-        /**
-         * Returns the current date in YYYY-MM-DD format based on Sri Lanka Standard Time (SLST).
-         * *** ADDED FOR SETTLEMENT FIX ***
-         */
         function getCurrentDateStringSLST() {
             const today = new Date(); 
-            // 5 hours 30 minutes = 330 minutes offset from UTC
-            const offset = 330 * 60000; // 330 minutes * 60000 ms/min
-            
-            // Calculate today's time in milliseconds adjusted to SLST
+            const offset = 330 * 60000; 
             const todaySLST = today.getTime() + today.getTimezoneOffset() * 60000 + offset; 
-            
-            // Create a new date object representing the current date in SLST
             const currentDate = new Date(todaySLST);
-            
-            // Format to YYYY-MM-DD using SLST Timezone
             const date = currentDate.toLocaleDateString('en-US', { 
                 year: 'numeric', 
                 month: '2-digit', 
                 day: '2-digit', 
-                timeZone: 'Asia/Colombo' // SLST Timezone
+                timeZone: 'Asia/Colombo' 
             }).split('/').reverse().join('-');
             return date;
         }
@@ -774,7 +808,6 @@
             loanToDeleteNumber = null;
         }
         
-        // NEW: Function to show/hide Unpaid Confirmation Modal
         function showUnpaidConfirmationModal(unpaidCount) {
              unpaidCountSpan.textContent = unpaidCount;
              unpaidConfirmationModal.classList.remove('hidden');
@@ -917,7 +950,99 @@ Thank you for your business!
         }
 
         // ---------------------------------------------------------------------
-        // NEW Settlement Logic (Modified to use Current Date/Time)
+        // Presence System Logic (NEW)
+        // ---------------------------------------------------------------------
+
+        async function updateUserPresence(status) {
+            if (!db || !currentUserName || currentUserName === "N/A (Not Logged In)") return;
+            
+            const userRef = doc(db, USER_PRESENCE_PATH, currentUserName); 
+            const presenceData = {
+                name: currentUserName,
+                status: status, // 'online' or 'offline'
+                lastSeen: serverTimestamp(),
+            };
+            
+            try {
+                await setDoc(userRef, presenceData, { merge: true });
+                console.log(`Presence updated for ${currentUserName}: ${status}`);
+            } catch (error) {
+                console.error("Error updating presence:", error);
+            }
+        }
+
+        function listenForPresence() {
+            if (!db) return;
+            const presenceRef = collection(db, USER_PRESENCE_PATH);
+
+            if (unsubscribePresence) {
+                unsubscribePresence(); // Clear existing listener
+            }
+
+            unsubscribePresence = onSnapshot(presenceRef, (snapshot) => {
+                snapshot.docChanges().forEach((change) => {
+                    const data = change.doc.data();
+                    onlineUsers[data.name] = data;
+                });
+                renderPresenceBadges();
+                console.log("Real-time presence update received.");
+            }, (error) => {
+                console.error("Error listening to user presence:", error);
+            });
+        }
+
+        function renderPresenceBadges() {
+            if (cashierOnlineStatus.classList.contains('hidden')) {
+                cashierOnlineStatus.classList.remove('hidden');
+            }
+
+            // Create a temporary object combining all known users with their current status
+            const statusHtml = knownUsers.map(name => {
+                const statusData = onlineUsers[name];
+                let isOnline = false;
+                let lastSeenTime = 'N/A';
+                
+                if (statusData && statusData.status === 'online') {
+                    isOnline = true;
+                } 
+                
+                if (statusData && statusData.lastSeen) {
+                    const { time: timeString } = formatDateTime(statusData.lastSeen);
+                    lastSeenTime = timeString;
+                    
+                    // Simple logic to detect if 'online' status is stale (e.g., older than 2 minutes)
+                    if (isOnline) {
+                        const lastSeenMs = statusData.lastSeen.toDate().getTime();
+                        const nowMs = new Date().getTime();
+                        if (nowMs - lastSeenMs > (2 * 60 * 1000)) { // 2 minutes stale
+                            isOnline = false; // Treat as offline if stale
+                        }
+                    }
+                }
+                
+                const statusClass = isOnline ? 'online-badge' : 'offline-badge';
+                const dotClass = isOnline ? 'online-dot' : 'offline-dot';
+                const statusText = isOnline ? 'ONLINE' : 'OFFLINE';
+                const tooltipText = isOnline ? `Logged in now` : `Last seen: ${lastSeenTime}`;
+
+                // Apply special styling to the logged-in user's badge
+                const isCurrentUser = name === currentUserName && isOnline;
+                const selfClass = isCurrentUser ? 'border-2 border-indigo-500 shadow-lg' : '';
+
+
+                return `
+                    <div class="${statusClass} ${selfClass}" title="${tooltipText}">
+                        <div class="${dotClass}"></div>
+                        ${name} (${statusText})
+                    </div>
+                `;
+            }).join('');
+
+            onlineStatusBadges.innerHTML = statusHtml;
+        }
+
+        // ---------------------------------------------------------------------
+        // Settlement Logic 
         // ---------------------------------------------------------------------
 
         function listenForSettlementData() {
@@ -927,9 +1052,6 @@ Thank you for your business!
             onSnapshot(settleRef, (docSnap) => {
                 if (docSnap.exists()) {
                     userSettlementDate = docSnap.data();
-                    console.log("Settlement Data Updated:", userSettlementDate);
-                    // VITAL FIX: Immediately force a re-render/re-calculation of summaries 
-                    // when the settlement date changes in Firebase.
                     filterAndRenderLoans(); 
                 } else {
                     userSettlementDate = {};
@@ -939,9 +1061,7 @@ Thank you for your business!
             });
         }
         
-        // NEW: Function that checks for unpaid records and handles the flow
         function handleSettle(userName) {
-            // FIXED: Only allow settlement if the logged-in user matches the button's user.
             if(currentUserName !== userName || currentUserName === "N/A (Not Logged In)") {
                  showLoginMessage(`Error: You can only settle your own account (${userName}).`, true);
                 return;
@@ -949,46 +1069,18 @@ Thank you for your business!
 
             userToSettle = userName;
             
-            // 1. Filter the records for the current user that are NOT settled and NOT paid
             const unpaidPendingSettleRecords = currentLoans.filter(loan => {
                 const name = loan.addedByName;
                 const loanDate = getDateStringFromISO(loan.createdAt); 
                 const lastSettleDate = userSettlementDate[name];
-                let isSettled = false;
-
-                // Check if the record is settled based on the date string
-                if (lastSettleDate) {
-                    const loanDateString = loanDate.toString(); 
-                    const lastSettleDateString = lastSettleDate.toString(); 
-
-                    // Fix for Settlement Logic (The change is here)
-                    if (loanDateString < lastSettleDateString) { 
-                        isSettled = true; // Settled: If the loan date is strictly BEFORE the settlement date.
-                    } else {
-                         // The original logic here was wrong, it must check the date and ensure PAID status is ignored for this warning.
-                         // We are checking for *unpaid* records that should be settled.
-                         if (loanDateString === lastSettleDateString && loan.isMarked) {
-                            // If it's the same date AND paid, we still treat it as NOT settled for the NEXT settlement.
-                            isSettled = false;
-                         } else if (loanDateString > lastSettleDateString) {
-                             isSettled = false;
-                         } else {
-                              isSettled = false; // Default: Not settled yet, so count it.
-                         }
-                    }
-                }
                 
-                // Check if it's the current user, NOT settled, and NOT paid
-                // The main settlement calculation logic in filterAndRenderLoans will be the one using the correct date comparison.
-                // For this unpaid check, we just need to know if there are any UNPAID records that are NOT older than the last settlement date.
-                
-                // Simpler check for *Unpaid* records: Filter for records by this user that are NOT paid and their creation date is >= last settlement date.
                 let isRecordPendingUnpaid = false;
-                if (lastSettleDate) {
-                    isRecordPendingUnpaid = name === userName && !loan.isMarked && loanDate >= lastSettleDate;
-                } else {
-                     // If never settled, count all unpaid records
-                     isRecordPendingUnpaid = name === userName && !loan.isMarked;
+                if (name === userName && !loan.isMarked) {
+                     if (lastSettleDate) {
+                        isRecordPendingUnpaid = loanDate >= lastSettleDate;
+                     } else {
+                         isRecordPendingUnpaid = true;
+                     }
                 }
                 
                 return isRecordPendingUnpaid;
@@ -996,17 +1088,14 @@ Thank you for your business!
             });
 
             if (unpaidPendingSettleRecords.length > 0) {
-                // 2. Found unpaid records, show the warning modal
                 showUnpaidConfirmationModal(unpaidPendingSettleRecords.length);
             } else {
-                // 3. No unpaid records, proceed to main settlement confirmation
                 settleModalUserNameSpan.textContent = userName;
                 settleConfirmationModal.classList.remove('hidden');
                 settleConfirmationModal.classList.add('flex');
             }
         }
         
-        // NEW: Function to handle the OK button press on the unpaid warning modal
         function proceedToMainSettleConfirmation() {
             hideUnpaidConfirmationModal();
             if (userToSettle) {
@@ -1022,26 +1111,20 @@ Thank you for your business!
             confirmSettleButton.disabled = true;
             confirmSettleButton.textContent = 'Settling...';
 
-            // *** VITAL CHANGE ***: Get the CURRENT date string (SLST) to mark records up to NOW as settled.
             const settleDateSLST = getCurrentDateStringSLST(); 
             
             try {
                 const settleRef = doc(db, 'settlement_status', 'user_settlements');
                 
-                // Update the user's settlement date to TODAY's date string (SLST)
                 await setDoc(settleRef, {
                     [userToSettle]: settleDateSLST,
-                    // Add timestamp to track when the settlement was done, useful for auditing
                     [`${userToSettle}_settledAt`]: serverTimestamp() 
                 }, { merge: true });
 
-                // VITAL UI CHANGE: Message indicates settlement up to TODAY (the moment of click)
                 showMessage(`${userToSettle}'s account successfully settled up to ${settleDateSLST}. All today's totals reset.`, false);
                 
-                // VITAL FIX: Force a small delay to ensure Firestore listener receives the update
                 await new Promise(resolve => setTimeout(resolve, 500)); 
 
-                // Corrected modal closing
                 settleConfirmationModal.classList.remove('flex');
                 settleConfirmationModal.classList.add('hidden');
                 
@@ -1055,7 +1138,6 @@ Thank you for your business!
             }
         }
         
-        // NEW FUNCTION: Manage which settlement button is visible
         function updateSettlementButtonVisibility() {
             const settleButtons = document.querySelectorAll('.settle-button');
             settleButtons.forEach(button => {
@@ -1066,7 +1148,6 @@ Thank you for your business!
                     button.classList.add('hidden-settle');
                 }
             });
-            // Show the container if at least one button is visible (which should be true if logged in)
             if (currentUserName !== "N/A (Not Logged In)") {
                  settlementButtonsContainer.classList.remove('hidden');
             } else {
@@ -1088,7 +1169,7 @@ Thank you for your business!
                 return;
             }
             try {
-                const profileRef = doc(db, getUserProfilePath(userId)); // Use setDoc with merge: true to create or update the document
+                const profileRef = doc(db, getUserProfilePath(userId)); 
                 await setDoc(profileRef, {
                     name: name,
                     userId: userId,
@@ -1096,9 +1177,8 @@ Thank you for your business!
                 }, {
                     merge: true
                 });
-                console.log(`User name saved/updated to Firestore: ${name}`);
             } catch (error) {
-                console.error("Error saving user profile:", error); // Non-critical error, but log it.
+                console.error("Error saving user profile:", error); 
             }
         }
         
@@ -1110,7 +1190,9 @@ Thank you for your business!
                 return;
             }
             loginButton.disabled = true;
-            loginButton.textContent = 'Checking Passcode...'; // 1. Check Passcode locally
+            loginButton.textContent = 'Checking Passcode...'; 
+            
+            // --- PASSCODE CHECK (Using the newly added USER_PASSCODES object) ---
             const expectedPasscode = USER_PASSCODES[selectedName];
             if (enteredPasscode !== expectedPasscode) {
                 showLoginMessage("Invalid Passcode. Please try again.", true);
@@ -1119,8 +1201,10 @@ Thank you for your business!
                 passcodeInput.value = '';
                 passcodeInput.focus();
                 return;
-            } // 2. Successful Login: Set global state and save profile
-            currentUserName = selectedName; // Ensure Firebase Auth is ready and user is signed in (anonymously or via token)
+            } 
+            
+            // --- SUCCESSFUL LOGIN ---
+            currentUserName = selectedName; 
             if (!auth || !currentUserId) {
                 try {
                     await signInAnonymously(auth);
@@ -1131,19 +1215,27 @@ Thank you for your business!
                     loginButton.textContent = 'Login';
                     return;
                 }
-            } // 3. Save the successfully logged-in name to the user's profile
-            await saveUserNameToProfile(currentUserName, currentUserId); // 4. Update UI to show successful login
+            } 
+            
+            await saveUserNameToProfile(currentUserName, currentUserId); 
+            
             userIdDisplay.textContent = `Logged in as: ${currentUserName} | User ID: ${currentUserId.substring(0, 8)}...`;
             loginSection.classList.add('hidden');
             mainAppContent.classList.remove('hidden');
-            showLoginMessage(`Login Successful! Welcome, ${currentUserName}.`, false); // 5. Finalize App UI and listener setup
+            showLoginMessage(`Login Successful! Welcome, ${currentUserName}.`, false); 
             submitButton.textContent = 'Add Record and Print Receipt';
             submitButton.classList.remove('bg-gray-400');
             submitButton.classList.add('bg-indigo-600', 'hover:bg-indigo-700');
-            submitButton.disabled = false; // Since the user is now authenticated and logged in, start listening to data
+            submitButton.disabled = false; 
+            
+            // NEW: Set initial online status and start presence listener
+            await updateUserPresence('online');
+            listenForPresence(); 
+            
             startRealTimeListener();
-            listenForSettlementData(); // Start listening to settlement data after login
-            updateSettlementButtonVisibility(); // NEW: Show only the logged-in user's button
+            listenForSettlementData(); 
+            updateSettlementButtonVisibility(); 
+            
             loginButton.disabled = false;
             loginButton.textContent = 'Login';
         }
@@ -1153,12 +1245,13 @@ Thank you for your business!
                 setLogLevel('debug');
                 const app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
-                auth = getAuth(app); // 1. Prepare UI
-                userIdDisplay.textContent = 'Connecting to Cloud Database...'; // 2. Set up Auth State Listener (Primarily to get the UID)
+                auth = getAuth(app); 
+                userIdDisplay.textContent = 'Connecting to Cloud Database...'; 
+                
                 onAuthStateChanged(auth, async (user) => {
                     isAuthReady = true;
                     if (user) {
-                        currentUserId = user.uid; // Note: We don't automatically show the app here. We wait for the local login.
+                        currentUserId = user.uid; 
                         userIdDisplay.textContent = `User ID: ${currentUserId.substring(0, 8)}... (Ready for Login)`;
                     } else {
                         currentUserId = null;
@@ -1171,13 +1264,14 @@ Thank you for your business!
                 }, (error) => {
                     console.error("Auth Listener Setup Error:", error);
                     showLoginMessage(`Critical Auth Error: ${error.message}`, true);
-                }); // Initial Sign-In attempt (Anonymous sign-in to get a UID for Firestore)
+                }); 
+
                 try {
                     if (initialAuthToken) {
                         await signInWithCustomToken(auth, initialAuthToken);
                     } else {
                         await signInAnonymously(auth);
-                    } // The onAuthStateChanged listener will handle the result.
+                    } 
                 } catch (error) {
                     console.error("Initial Sign-In Failed:", error);
                 }
@@ -1200,9 +1294,8 @@ Thank you for your business!
                 currentLoans = snapshot.docs.map(doc => ({
                     id: doc.id,
                     ...doc.data()
-                })); // Re-render the list immediately upon receiving new data
+                })); 
                 filterAndRenderLoans();
-                console.log("Real-time data update received. Total records:", currentLoans.length);
             }, (error) => {
                 console.error("Firestore Snapshot Error:", error);
                 showMessage(`Real-time data error: ${error.message}`, true);
@@ -1229,7 +1322,7 @@ Thank you for your business!
                     paymentMethod: paymentMethod,
                     paidAt: null,
                     addedByUserId: currentUserId,
-                    addedByName: currentUserName, // Use the logged-in name
+                    addedByName: currentUserName, 
                 };
                 const docRef = await addDoc(collection(db, LOAN_RECORDS_PATH), newLoanData);
                 const newLoanId = docRef.id;
@@ -1239,7 +1332,7 @@ Thank you for your business!
                 updateCalculatedPreview();
                 updateAmountPreview();
                 hideWhatsAppPrompt(); 
-                // Create a temporary loan object to use for immediate printing before snapshot updates
+                
                 const tempLoan = {
                     ...newLoanData,
                     id: newLoanId,
@@ -1284,7 +1377,7 @@ Thank you for your business!
                     paymentMethod: method,
                     paidAt: serverTimestamp(),
                     markedByUserId: currentUserId,
-                    markedByName: currentUserName // Also track who marked it as paid
+                    markedByName: currentUserName 
                 });
                 showMessage(`Loan number ${loan.loanNumber}: Payment confirmed as FINAL by ${currentUserName}. Method: ${method.toUpperCase()}.`, false);
                 promptWhatsAppSend(id);
@@ -1322,48 +1415,28 @@ Thank you for your business!
             const sortedLoans = [...currentLoans].sort((a, b) => {
                 const dateA = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : (new Date(a.createdAt)).getTime();
                 const dateB = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : (new Date(b.createdAt)).getTime();
-                return dateB - dateA; // Descending sort
+                return dateB - dateA; 
             });
-            let selectedDate = filterDateInput.value; // User-selected date (YYYY-MM-DD)
+            let selectedDate = filterDateInput.value; 
             const searchInput = searchLoanNumberInput.value.toLowerCase().trim();
             let loansToRender = sortedLoans; 
             
-            // --- Logic: Default to Today's Date if no date is manually selected ---
             if (!selectedDate) {
-                // *** MODIFIED: Use getCurrentDateStringSLST for consistency ***
                 selectedDate = getCurrentDateStringSLST(); 
             } 
             
-            // 1. Filter by Date
             if (selectedDate) {
                 loansToRender = loansToRender.filter(loan => { 
                     return getDateStringFromISO(loan.createdAt) === selectedDate;
                 });
             } 
             
-            // 2. Filter by Loan Number Search 
             if (searchInput) { 
                 loansToRender = loansToRender.filter(loan => {
                     return loan.loanNumber.toLowerCase().includes(searchInput);
                 });
             } 
             
-            // *** NEW LOGIC: Default to only show the last 100 records IF NO FILTERS ARE APPLIED ***
-            // The original code forces filtering by date (today) if no date is selected, 
-            // and filters by loan number if a search is active.
-            // If the date is explicitly selected OR search is active, we show all matching records.
-            // If only the current date is shown (default behavior without explicit date selection or search), we can limit it.
-            
-            // Get the date of the displayed data
-            const displayedDate = filterDateInput.value || getCurrentDateStringSLST();
-            const isDefaultView = !filterDateInput.value && !searchLoanNumberInput.value;
-
-            // We will NOT apply the 100 limit here, to avoid breaking the expected functionality of showing all records 
-            // for the selected date or search term, even if it's the current date.
-            // Instead, we ensure the summary calculation logic is correct.
-
-            
-            // --- Calculate Totals for visible PAID records ---
             const paidLoansToRender = loansToRender.filter(loan => loan.isMarked); 
             let totalNetValue = paidLoansToRender.reduce((sum, loan) => sum + loan.calculatedValue, 0);
             if (totalNetValueSpan) {
@@ -1374,7 +1447,6 @@ Thank you for your business!
                 totalMarkedCountSpan.textContent = markedCount.toString();
             } 
             
-            // 3. Individual Payment Method Counts
             let cashCount = 0;
             let cardCount = 0;
             let onlineCount = 0;
@@ -1392,7 +1464,6 @@ Thank you for your business!
             cardCountSpan.textContent = cardCount.toString();
             onlineCountSpan.textContent = onlineCount.toString(); 
             
-            // --- Calculate User Performance Summary (Settlement Aware) ---
             
             let userTotals = {
                 Ashan: {
@@ -1413,36 +1484,28 @@ Thank you for your business!
                 }
             };
             
-            // *** VITAL CHANGE: Filter only PAID records for the summary. ***
-            // The summary must be calculated on ALL paid loans, not just the filtered view.
             const allPaidLoans = sortedLoans.filter(loan => loan.isMarked);
             
             allPaidLoans.forEach(loan => { 
                 const name = loan.addedByName;
                 const netValue = loan.calculatedValue || 0;
-                const loanDate = getDateStringFromISO(loan.createdAt); // Loan Date YYYY-MM-DD
+                const loanDate = getDateStringFromISO(loan.createdAt); 
                 
-                // Get the user's last settlement date from the global variable
                 const lastSettleDate = userSettlementDate[name];
                 let isSettled = false;
                 
                 if (lastSettleDate) {
-                    // *** VITAL FIX: Settlement Check (YYYY-MM-DD string comparison) ***
-                    
                     const loanDateString = loanDate.toString(); 
                     const lastSettleDateString = lastSettleDate.toString(); 
 
-                    // FIX APPLIED HERE: Change <= to <. 
-                    // This ensures that records added on the SAME day as settlement (or later days) are counted (isSettled = false).
-                    // Only records strictly BEFORE the settlement date are considered settled.
                     if (loanDateString < lastSettleDateString) { 
-                        isSettled = true; // Settled, do not count.
+                        isSettled = true; 
                     } else {
-                        isSettled = false; // Not settled, should be counted. (i.e. Records from the same day or a NEW day)
+                        isSettled = false; 
                     }
                 }
 
-                if (!isSettled) { // Count only if NOT settled
+                if (!isSettled) { 
                     if (userTotals.hasOwnProperty(name)) {
                         userTotals[name].count++;
                         userTotals[name].netValue += netValue;
@@ -1450,7 +1513,6 @@ Thank you for your business!
                 }
             }); 
             
-            // Update User Summary UI
             if (ashanCountSpan) {
                 ashanCountSpan.textContent = userTotals.Ashan.count;
                 ashanNetTotalSpan.textContent = formatCurrency(userTotals.Ashan.netValue);
@@ -1481,14 +1543,6 @@ Thank you for your business!
                 return;
             }
             
-            // *** NEW: Apply the last 100 limit only after all other filters/sorts, and only if no explicit date/search is active. ***
-            // Given the existing logic forces a default date filter, applying a limit here might cut off data from today.
-            // As per the previous note, I will NOT apply the limit of 100 here to preserve existing date-filtering logic, 
-            // but will note where the change would be:
-            // if (!filterDateInput.value && !searchLoanNumberInput.value) {
-            //     loans = loans.slice(0, 100); 
-            // }
-
             if (loans.length === 0) {
                 const filterActive = filterDateInput.value || searchLoanNumberInput.value;
                 let message = filterActive ? 'No records match the current filters.' : 'No records found for the selected date or today.'; 
@@ -1508,7 +1562,7 @@ Thank you for your business!
                 let paymentMethodContent = '';
                 let finalStatusContent = '';
                 let method = loan.paymentMethod ? loan.paymentMethod.toUpperCase() : 'PENDING'; 
-                // --- Payment Method Column Content ---
+                
                 let badgeColor = 'bg-yellow-500';
                 let methodText = method;
                 if (isPaid) {
@@ -1526,7 +1580,7 @@ Thank you for your business!
 <span class="px-3 py-1 text-xs font-bold text-white uppercase rounded-full ${badgeColor} shadow-md"> 
     ${methodText} 
 </span> 
-`; // --- Final Status Column Content (Checkbox) ---
+`; 
                 const checkboxStatusText = isPaid ? 'PAID (Final)' : 'Mark as Paid';
                 finalStatusContent = ` 
 <div class="flex flex-col items-center justify-center p-2"> 
@@ -1535,7 +1589,7 @@ Thank you for your business!
         ${checkboxStatusText} 
     </label> 
 </div> 
-`; // --- Added By Column Content (NEW) ---
+`; 
                 const addedByName = loan.addedByName || 'N/A (No Name)';
                 return ` 
 <tr class="${rowClass} hover:bg-gray-100 transition duration-100"> 
@@ -1567,7 +1621,7 @@ Thank you for your business!
             if (currentLoans.length === 0) {
                 showMessage("No data to download.", true);
                 return;
-            } // Download should always include ALL data, regardless of the view filters
+            } 
             const loansToCopy = [...currentLoans].sort((a, b) => {
                 const dateA = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : (new Date(a.createdAt)).getTime();
                 const dateB = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : (new Date(b.createdAt)).getTime();
@@ -1631,7 +1685,9 @@ Thank you for your business!
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
             showMessage("✅ All records successfully downloaded as Excel (CSV) file.", false);
-        } // --- DARK MODE LOGIC (Added) ---
+        } 
+
+        // --- DARK MODE LOGIC ---
 
         function enableDarkMode() {
             document.body.classList.add('dark-mode');
@@ -1646,26 +1702,33 @@ Thank you for your business!
         }
 
         // --- Event Listeners ---
-        // New Login Listener
+        
+        // NEW: Handle user going offline when closing/leaving the page
+        window.addEventListener('beforeunload', () => {
+            if (currentUserName && currentUserName !== "N/A (Not Logged In)") {
+                updateUserPresence('offline');
+            }
+        });
+
         loginButton.addEventListener('click', handleLogin);
         passcodeInput.addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
                 e.preventDefault();
                 handleLogin();
             }
-        }); // Dark Mode Toggle Listener (Added)
+        }); 
         darkModeToggle.addEventListener('change', function() {
             if (this.checked) {
                 enableDarkMode();
             } else {
                 disableDarkMode();
             }
-        }); // Existing App Listeners
+        }); 
         paidValueInput.addEventListener('input', updateCalculatedPreview);
         amountInput.addEventListener('input', updateAmountPreview);
         filterDateInput.addEventListener('change', filterAndRenderLoans);
         searchLoanNumberInput.addEventListener('input', filterAndRenderLoans);
-        downloadExcelButton.addEventListener('click', downloadLoansAsCSV); // Added listener for the download button
+        downloadExcelButton.addEventListener('click', downloadLoansAsCSV); 
         confirmDeleteButton.addEventListener('click', () => {
             if (loanToDeleteId && loanToDeleteNumber) {
                 performActualDelete(loanToDeleteId, loanToDeleteNumber);
@@ -1676,18 +1739,17 @@ Thank you for your business!
         });
         cancelButton.addEventListener('click', hideModal);
         closeReceiptButton.addEventListener('click', closeReceiptModal);
-        printButton.addEventListener('click', printReceipt); // 🛑 MODIFIED: Clear filter logic to only clear the input field, allowing filterAndRenderLoans to default to today
+        printButton.addEventListener('click', printReceipt); 
         clearFilterButton.addEventListener('click', function() {
-            filterDateInput.value = ''; // Clear the input field
+            filterDateInput.value = ''; 
             searchLoanNumberInput.value = '';
-            filterAndRenderLoans(); // This will trigger the default to today's date in the logic
+            filterAndRenderLoans(); 
             showMessage('Date filter cleared. Showing today\'s records.', false);
         });
 
-        // --- New Settlement Event Listeners (Added) ---
+        // --- Settlement Event Listeners ---
         document.querySelectorAll('.settle-button').forEach(button => {
             button.addEventListener('click', () => {
-                // FIXED: Call the updated handleSettle which contains the user check
                 handleSettle(button.dataset.user);
             });
         });
@@ -1699,14 +1761,15 @@ Thank you for your business!
             userToSettle = null;
         });
         
-        // NEW: Unpaid Confirmation Modal Listeners
+        // Unpaid Confirmation Modal Listeners
         okUnpaidSettleButton.addEventListener('click', proceedToMainSettleConfirmation);
         cancelUnpaidSettleButton.addEventListener('click', hideUnpaidConfirmationModal);
 
 
         // Initial call to set up Firebase and Authentication
-        initializeAppAndAuth(); // --- Initial Dark Mode Check (Added) ---
-
+        initializeAppAndAuth(); 
+        
+        // Initial Dark Mode Check
         const savedTheme = localStorage.getItem('theme');
         if (savedTheme === 'dark') {
             enableDarkMode();
@@ -1721,7 +1784,7 @@ Thank you for your business!
         window.deleteLoan = deleteLoan;
         window.showReceipt = showReceipt; 
         
-        // Form submission listener (moved from original position for clarity)
+        // Form submission listener
         loanForm.addEventListener('submit', function(e) {
             e.preventDefault();
             const loanNumber = document.getElementById('loanNumber').value.trim();
