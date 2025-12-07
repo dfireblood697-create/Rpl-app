@@ -523,7 +523,7 @@
             <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden transform transition-all">
                 <div class="p-6">
                     <h3 class="text-lg font-bold text-red-700" id="settleModalTitle">Confirm Settlement</h3>
-                    <p class="mt-2 text-sm text-gray-700" id="settleModalMessage">Are you sure you want to **Settle** the account for <span id="settleModalUserName" class="font-mono font-semibold text-red-600"></span>? This will reset the daily calculation and **mark ALL records up to the Current Date/Time as settled**.</p>
+                    <p class="mt-2 text-sm text-gray-700" id="settleModalMessage">Are you sure you want to **Settle** the account for <span id="settleModalUserName" class="font-mono font-semibold text-red-600"></span>? This will reset the daily calculation and **mark ALL Paid records up to the Current Time as settled**.</p>
                 </div>
                 <div class="bg-gray-50 px-6 py-3 flex justify-end space-x-3">
                     <button id="cancelSettleButton" type="button" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 transition duration-150"> Cancel </button>
@@ -539,7 +539,7 @@
                     <p class="mt-2 text-sm text-gray-700" id="unpaidModalMessage">
                         You have <span id="unpaidCountSpan" class="font-extrabold text-red-600"></span> Unpaid (Pending Status) records in your current settlement batch.
                         <br><br>
-                        If you click **OK**, the Paid records will be settled. The **Unpaid records will remain in your summary** for the next day's settlement.
+                        If you click **OK**, the Paid records will be settled. The **Unpaid records will remain in your summary** for the next settlement.
                     </p>
                 </div>
                 <div class="bg-gray-50 px-6 py-3 flex justify-end space-x-3">
@@ -775,7 +775,6 @@
             return date;
         }
 
-
         function updateAmountPreview() {
             const principalAmount = parseFloat(amountInput.value);
             if (isNaN(principalAmount) || principalAmount <= 0) {
@@ -837,7 +836,8 @@
                 date: dateString,
                 time: timeString
             } = formatDateTime(loan.createdAt);
-            const paymentStatus = loan.isMarked ? 'PAID (Final Status)' : 'UNPAID (Pending Confirmation)';
+            // Receipt status is always FINAL PAID
+            const paymentStatus = 'PAID (Final Status)'; 
             const addedBy = loan.addedByName ? loan.addedByName : 'N/A';
             const message = `*Siriwardana Mobile - LPR Official Receipt* ------------------------------ 
 *TRANSACTION DETAILS* Loan Number: ${loan.loanNumber} 
@@ -856,7 +856,7 @@ Thank you for your business!
 
         function promptWhatsAppSend(loanId) {
             const loan = currentLoans.find(l => l.id === loanId);
-            if (!loan || !loan.isMarked) return;
+            if (!loan) return;
             let phone = loan.phoneNumber.replace(/\D/g, '');
             if (phone.length === 10 && phone.startsWith('0')) {
                 phone = '94' + phone.substring(1);
@@ -884,8 +884,11 @@ Thank you for your business!
                 time
             } = formatDateTime(loan.createdAt); 
             
-            const paymentStatusText = loan.isMarked ? 'PAID (FINAL)' : 'UNPAID (PENDING)';
-            const statusColor = loan.isMarked ? 'text-green-700' : 'text-red-700';
+            // --- UPDATED LOGIC: Always show PAID (FINAL) on the Receipt ---
+            const paymentStatusText = 'PAID (FINAL)';
+            const statusColor = 'text-green-700'; // Always show green color
+            // -----------------------------------------------------------
+            
             const paymentMethod = loan.paymentMethod ? loan.paymentMethod.toUpperCase() : 'PENDING';
             const addedByName = loan.addedByName ? loan.addedByName : 'N/A'; 
             
@@ -1053,6 +1056,7 @@ Thank you for your business!
                 if (docSnap.exists()) {
                     userSettlementDate = docSnap.data();
                     filterAndRenderLoans(); 
+                    updateSettlementButtonVisibility(); 
                 } else {
                     userSettlementDate = {};
                 }
@@ -1066,18 +1070,27 @@ Thank you for your business!
                  showLoginMessage(`Error: You can only settle your own account (${userName}).`, true);
                 return;
             }
+            
+            const todayDateString = getCurrentDateStringSLST();
+            if (userSettlementDate[`${userName}_settledAtDate`] === todayDateString) {
+                showLoginMessage(`Error: Your account has already been settled for today (${todayDateString}). You can only settle once per day.`, true);
+                return;
+            }
 
             userToSettle = userName;
             
+            // Check for Unpaid Records before full settlement confirmation
             const unpaidPendingSettleRecords = currentLoans.filter(loan => {
                 const name = loan.addedByName;
-                const loanDate = getDateStringFromISO(loan.createdAt); 
+                const loanTimestamp = loan.createdAt?.toDate ? loan.createdAt.toDate().getTime() : (new Date(loan.createdAt)).getTime();
                 const lastSettleDate = userSettlementDate[name];
                 
                 let isRecordPendingUnpaid = false;
                 if (name === userName && !loan.isMarked) {
                      if (lastSettleDate) {
-                        isRecordPendingUnpaid = loanDate >= lastSettleDate;
+                        const lastSettleTimestamp = lastSettleDate.toDate().getTime();
+                        // Check if the loan was created AFTER the last settlement
+                        isRecordPendingUnpaid = loanTimestamp >= lastSettleTimestamp; 
                      } else {
                          isRecordPendingUnpaid = true;
                      }
@@ -1088,8 +1101,10 @@ Thank you for your business!
             });
 
             if (unpaidPendingSettleRecords.length > 0) {
+                // If UNPAID records exist, show the UNPAID WARNING modal first
                 showUnpaidConfirmationModal(unpaidPendingSettleRecords.length);
             } else {
+                // If NO UNPAID records, proceed directly to the main SETTLEMENT confirmation modal
                 settleModalUserNameSpan.textContent = userName;
                 settleConfirmationModal.classList.remove('hidden');
                 settleConfirmationModal.classList.add('flex');
@@ -1111,17 +1126,25 @@ Thank you for your business!
             confirmSettleButton.disabled = true;
             confirmSettleButton.textContent = 'Settling...';
 
-            const settleDateSLST = getCurrentDateStringSLST(); 
+            const todayDateString = getCurrentDateStringSLST();
             
             try {
                 const settleRef = doc(db, 'settlement_status', 'user_settlements');
                 
+                // Final Check against race conditions
+                if (userSettlementDate[`${userToSettle}_settledAtDate`] === todayDateString) {
+                     showMessage(`Error: ${userToSettle}'s account has already been settled for today (${todayDateString}). You can only settle once per day.`, true);
+                     return;
+                }
+
                 await setDoc(settleRef, {
-                    [userToSettle]: settleDateSLST,
-                    [`${userToSettle}_settledAt`]: serverTimestamp() 
+                    // Store the current Server Timestamp (This is the cutoff point for the next summary calculation)
+                    [userToSettle]: serverTimestamp(), 
+                    // Store the date string to prevent settlement duplication today
+                    [`${userToSettle}_settledAtDate`]: todayDateString 
                 }, { merge: true });
 
-                showMessage(`${userToSettle}'s account successfully settled up to ${settleDateSLST}. All today's totals reset.`, false);
+                showMessage(`${userToSettle}'s account successfully settled. Summary has been reset.`, false);
                 
                 await new Promise(resolve => setTimeout(resolve, 500)); 
 
@@ -1139,11 +1162,19 @@ Thank you for your business!
         }
         
         function updateSettlementButtonVisibility() {
+            const todayDateString = getCurrentDateStringSLST();
             const settleButtons = document.querySelectorAll('.settle-button');
             settleButtons.forEach(button => {
                 const buttonUser = button.dataset.user;
-                if (buttonUser === currentUserName && currentUserName !== "N/A (Not Logged In)") {
+                const isSettledToday = userSettlementDate[`${buttonUser}_settledAtDate`] === todayDateString;
+
+                if (buttonUser === currentUserName && currentUserName !== "N/A (Not Logged In)" && !isSettledToday) {
                     button.classList.remove('hidden-settle');
+                    button.textContent = `${buttonUser}: Settle Now`; 
+                } else if (buttonUser === currentUserName && isSettledToday) {
+                    button.classList.add('hidden-settle'); // Hide if settled today
+                    // Optionally show a message that they have settled for the day
+                    // showMessage(`Note: Your account was settled today (${todayDateString}). Settlement button is hidden.`, false);
                 } else {
                     button.classList.add('hidden-settle');
                 }
@@ -1368,7 +1399,9 @@ Thank you for your business!
             }
             let method = loan.paymentMethod;
             if (!method || method === '') {
-                method = 'Cash';
+                // If payment method is not set, default to Cash, as payment is being confirmed now
+                method = 'Cash'; 
+                // Note: The previous logic relied on the radio buttons *before* submission. Now, we force a method if missing during marking.
             }
             try {
                 const loanDocRef = doc(db, LOAN_RECORDS_PATH, id);
@@ -1417,54 +1450,8 @@ Thank you for your business!
                 const dateB = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : (new Date(b.createdAt)).getTime();
                 return dateB - dateA; 
             });
-            let selectedDate = filterDateInput.value; 
-            const searchInput = searchLoanNumberInput.value.toLowerCase().trim();
-            let loansToRender = sortedLoans; 
             
-            if (!selectedDate) {
-                selectedDate = getCurrentDateStringSLST(); 
-            } 
-            
-            if (selectedDate) {
-                loansToRender = loansToRender.filter(loan => { 
-                    return getDateStringFromISO(loan.createdAt) === selectedDate;
-                });
-            } 
-            
-            if (searchInput) { 
-                loansToRender = loansToRender.filter(loan => {
-                    return loan.loanNumber.toLowerCase().includes(searchInput);
-                });
-            } 
-            
-            const paidLoansToRender = loansToRender.filter(loan => loan.isMarked); 
-            let totalNetValue = paidLoansToRender.reduce((sum, loan) => sum + loan.calculatedValue, 0);
-            if (totalNetValueSpan) {
-                totalNetValueSpan.textContent = formatCurrency(totalNetValue);
-            } 
-            let markedCount = paidLoansToRender.length;
-            if (totalMarkedCountSpan) {
-                totalMarkedCountSpan.textContent = markedCount.toString();
-            } 
-            
-            let cashCount = 0;
-            let cardCount = 0;
-            let onlineCount = 0;
-            paidLoansToRender.forEach(loan => {
-                const method = (loan.paymentMethod || '').toLowerCase();
-                if (method === 'cash') {
-                    cashCount++;
-                } else if (method === 'card') {
-                    cardCount++;
-                } else if (method === 'online') {
-                    onlineCount++;
-                }
-            }); 
-            cashCountSpan.textContent = cashCount.toString();
-            cardCountSpan.textContent = cardCount.toString();
-            onlineCountSpan.textContent = onlineCount.toString(); 
-            
-            
+            // --- Summary Calculation Logic (Reset after Settlement) ---
             let userTotals = {
                 Ashan: {
                     count: 0,
@@ -1484,24 +1471,31 @@ Thank you for your business!
                 }
             };
             
-            const allPaidLoans = sortedLoans.filter(loan => loan.isMarked);
+            const allRecords = sortedLoans;
             
-            allPaidLoans.forEach(loan => { 
+            allRecords.forEach(loan => { 
                 const name = loan.addedByName;
                 const netValue = loan.calculatedValue || 0;
-                const loanDate = getDateStringFromISO(loan.createdAt); 
                 
+                // 1. Paid ලෙස සලකුණු කර ඇත්නම් පමණක් ගණන් කරන්න.
+                if (!loan.isMarked) { 
+                    return; 
+                }
+
+                // 2. Settlement තර්කය යොදන්න: lastSettleDate එකෙන් පසු එකතු කළ රෙකෝඩ පමණක් ගණනය කරන්න.
                 const lastSettleDate = userSettlementDate[name];
                 let isSettled = false;
                 
-                if (lastSettleDate) {
-                    const loanDateString = loanDate.toString(); 
-                    const lastSettleDateString = lastSettleDate.toString(); 
+                if (lastSettleDate && lastSettleDate.toDate) { // Check if it's a Firestore Timestamp object
+                    // Use the timestamp of when the record was *created* for comparison
+                    const loanTimestamp = loan.createdAt?.toDate ? loan.createdAt.toDate().getTime() : (new Date(loan.createdAt)).getTime();
+                    const lastSettleTimestamp = lastSettleDate.toDate().getTime(); 
 
-                    if (loanDateString < lastSettleDateString) { 
+                    // Logic: If loan timestamp is strictly BEFORE the settlement timestamp, it's settled.
+                    if (loanTimestamp < lastSettleTimestamp) { 
                         isSettled = true; 
                     } else {
-                        isSettled = false; 
+                        isSettled = false; // Summary includes records created exactly at or after the settlement moment.
                     }
                 }
 
@@ -1530,6 +1524,71 @@ Thank you for your business!
                 menushiNetTotalSpan.textContent = formatCurrency(userTotals.Menushi.netValue);
             } 
             
+            
+            // --- Table Rendering Logic (Show records added after last settlement / or specific filtered date) ---
+            let selectedDate = filterDateInput.value; 
+            const searchInput = searchLoanNumberInput.value.toLowerCase().trim();
+            let loansToRender = sortedLoans; 
+            
+            // If NO filter date is selected, filter by the last settlement date (or show all if no settlement)
+            if (!selectedDate) {
+                loansToRender = loansToRender.filter(loan => {
+                    const name = loan.addedByName;
+                    const lastSettleDate = userSettlementDate[name];
+                    
+                    // If no settlement has been done for this user, show today's records only (to manage initial list size)
+                    if (!lastSettleDate || !lastSettleDate.toDate) {
+                         return getDateStringFromISO(loan.createdAt) === getCurrentDateStringSLST(); 
+                    }
+                    
+                    const loanTimestamp = loan.createdAt?.toDate ? loan.createdAt.toDate().getTime() : (new Date(loan.createdAt)).getTime();
+                    const lastSettleTimestamp = lastSettleDate.toDate().getTime(); 
+
+                    // Show all records added AT or AFTER the last settlement timestamp
+                    return loanTimestamp >= lastSettleTimestamp; 
+                });
+            } else {
+                 // If filter date is selected, apply the date filter regardless of settlement status
+                loansToRender = loansToRender.filter(loan => { 
+                    return getDateStringFromISO(loan.createdAt) === selectedDate;
+                });
+            } 
+            
+            if (searchInput) { 
+                loansToRender = loansToRender.filter(loan => {
+                    return loan.loanNumber.toLowerCase().includes(searchInput);
+                });
+            } 
+            
+            // Calculate totals for the header based on loansToRender (filtered list)
+            const paidLoansToRender = loansToRender.filter(loan => loan.isMarked); 
+            let totalNetValue = paidLoansToRender.reduce((sum, loan) => sum + loan.calculatedValue, 0);
+            if (totalNetValueSpan) {
+                totalNetValueSpan.textContent = formatCurrency(totalNetValue);
+            } 
+            let markedCount = paidLoansToRender.length;
+            if (totalMarkedCountSpan) {
+                totalMarkedCountSpan.textContent = markedCount.toString();
+            } 
+            
+            let cashCount = 0;
+            let cardCount = 0;
+            let onlineCount = 0;
+            paidLoansToRender.forEach(loan => {
+                const method = (loan.paymentMethod || '').toLowerCase();
+                if (method === 'cash') {
+                    cashCount++;
+                } else if (method === 'card') {
+                    cardCount++;
+                } else if (method === 'online') {
+                    onlineCount++;
+                }
+            }); 
+            cashCountSpan.textContent = cashCount.toString();
+            cardCountSpan.textContent = cardCount.toString();
+            onlineCountSpan.textContent = onlineCount.toString(); 
+            
+            
             renderLoansTable(loansToRender);
         }
 
@@ -1545,7 +1604,7 @@ Thank you for your business!
             
             if (loans.length === 0) {
                 const filterActive = filterDateInput.value || searchLoanNumberInput.value;
-                let message = filterActive ? 'No records match the current filters.' : 'No records found for the selected date or today.'; 
+                let message = filterActive ? 'No records match the current filters.' : 'No new records added since last settlement / No records today.'; 
                 loanTableBody.innerHTML = `<tr><td colspan="10" class="text-center py-4 text-gray-500">${message}</td></tr>`;
                 return;
             }
@@ -1744,11 +1803,12 @@ Thank you for your business!
             filterDateInput.value = ''; 
             searchLoanNumberInput.value = '';
             filterAndRenderLoans(); 
-            showMessage('Date filter cleared. Showing today\'s records.', false);
+            showMessage('Date filter cleared. Showing records since last settlement.', false);
         });
 
         // --- Settlement Event Listeners ---
         document.querySelectorAll('.settle-button').forEach(button => {
+            // UPDATED: Call handleSettle when button is clicked (This is the confirmation trigger)
             button.addEventListener('click', () => {
                 handleSettle(button.dataset.user);
             });
